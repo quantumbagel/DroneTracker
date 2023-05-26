@@ -1,0 +1,8 @@
+{
+  "camera": {"alt":  200, "lat/long": "35°45'24.4\"N 78°53'53.4\"W"},
+  "drone": {"height": 3, "width":  4, "depth": 5},
+  "scale": {"dist":  10,
+    "width": 10
+
+  }
+}
