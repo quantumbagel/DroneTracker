@@ -1,19 +1,5 @@
 import math
-
 from geopy.distance import geodesic
-
-from Drone import Drone
-
-
-def degrees_to_decimal(coord):
-    """
-    A function to convert a coordinate to decimal (format 35°45'31.2"N or 78°53'59.5"W)
-    :param coord: The coordinate (latitude or longitude) to convert to decimal
-    :return: the converted coordinate
-    """
-    coord = coord.replace("°", "-").replace("'", "-").replace('"', "")
-    multiplier = 1 if coord[-1] in ['N', 'W'] else -1
-    return multiplier * sum(float(x) / 60 ** n for n, x in enumerate(coord[:-1].split('-')))
 
 
 class Camera:
@@ -21,23 +7,21 @@ class Camera:
     A class to handle the math for the camera's pan, tilt, and zoom
      as well as actually doing those things in real life.
     """
-    def __init__(self, drone: Drone, config: dict, lat_long_format='degrees'):
+    def __init__(self, config: dict, lat_long_format='degrees'):
         """
         Initialize the values and convert to decimal if needed
-        :param drone: The drone object, containing the numbers that the program needs to calculate ptz
         :param config: the configuration dictionary
         :param lat_long_format: the format the latitude and longitude are in
         """
         assert lat_long_format in ['degrees', 'decimal']
         if lat_long_format == 'degrees':
-            self.lat = degrees_to_decimal(config['camera']['lat'])
-            self.long = degrees_to_decimal(config['camera']['long'])
+            self.lat = self.degrees_to_decimal(config['camera']['lat'])
+            self.long = self.degrees_to_decimal(config['camera']['long'])
         else:
             self.lat = float(config['camera']['lat'])
             self.long = float(config['camera']['long'])
         self.config = config
         self.alt = config['camera']['alt']
-        self.drone = drone
         self.dist_xz = -1
         self.dist_y = -1
         self.dist = -1
@@ -46,12 +30,21 @@ class Camera:
         self.zoom = -1
         self.drone_loc = []
 
+    def degrees_to_decimal(self, coord):
+        """
+        A function to convert a coordinate to decimal (format 35°45'31.2"N or 78°53'59.5"W)
+        :param coord: The coordinate (latitude or longitude) to convert to decimal
+        :return: the converted coordinate
+        """
+        coord = coord.replace("°", "-").replace("'", "-").replace('"', "")
+        multiplier = 1 if coord[-1] in ['N', 'W'] else -1
+        return multiplier * sum(float(x) / 60 ** n for n, x in enumerate(coord[:-1].split('-')))
+
     def update(self):
         """
         Calculate the zoom and heading directions via Camera.calculate_heading_directions and Camera.calculate_zoom
         :return: none
         """
-        self.drone_loc = [self.drone.lat, self.drone.long, self.drone.alt]
         self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions()
         self.dist, self.zoom = self.calculate_zoom()
 
@@ -87,9 +80,12 @@ class Camera:
         zoom = (dist * max_dimension) / (self.config['scale']['dist'] * self.config['scale']['width'])
         return dist, zoom
 
-    def move_camera(self):
+    def move_camera(self, drone_loc):
         """
         A function to send the command to pan, tilt, and zoom to the camera over whatever protocol we end up using
         :return: none
         """
-        pass
+        self.drone_loc = drone_loc
+        self.update()
+        #  Do camera stuff
+
