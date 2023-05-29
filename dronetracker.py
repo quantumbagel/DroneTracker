@@ -1,4 +1,5 @@
 import json
+import math
 import time
 from Drone import Drone
 from Camera import Camera
@@ -19,7 +20,6 @@ def load_config():
     camera_lat = camera_lat_long[0]
     camera_long = camera_lat_long[1]
     camera_alt = float(config['camera']['alt'])
-    d = Drone()
 
     if '°' not in camera_lat:  # decimal format
         coord_format = 'decimal'
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                 78.89816666666667 + 0.001 * (start_time-c_time),
                 camera_altitude + 0.1 * (start_time-c_time)]
 
-    d = Drone(debug=bad_drone_sim)
+    d = Drone(debug=None)
     c = Camera(camera_latitude, camera_longitude, camera_altitude, d, configuration, lat_long_format=coordinate_format)
     first_loop = True
     while True:
@@ -55,4 +55,5 @@ if __name__ == '__main__':
         print("Distance to camera:", c.dist)
         print("Horizontal distance to camera:", c.dist_xz)
         print("Vertical distance to camera:", c.dist_y)
-        print("Heading direction to camera: (rads)", c.heading_xz, c.heading_y)
+        print("Heading direction to camera: (deg)", c.heading_xz * 180/math.pi, c.heading_y * 180/math.pi)
+        time.sleep(1)
