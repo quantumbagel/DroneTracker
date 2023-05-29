@@ -1,0 +1,11 @@
+camera:
+   alt: 3500 # camera alt (ft)
+   lat: "35.751253" # can be decimal int, string, or degrees copied from Google Maps
+   long: "-78.902028"
+drone:
+    height: 3 # y drone (in feet)
+    width: 4 # x
+    depth: 5 # z
+scale:
+    dist: 10
+    width: 10
