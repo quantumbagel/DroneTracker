@@ -20,9 +20,9 @@ def print_information(camera):
             sys.stdout.write('\x1b[1A')
             sys.stdout.write('\x1b[2K')
 
-    print("Distance to camera:", camera.dist)
-    print("Horizontal distance to camera:", camera.dist_xz)
-    print("Vertical distance to camera:", camera.dist_y)
+    print("Distance to camera: (m)", camera.dist)
+    print("Horizontal distance to camera: (m)", camera.dist_xz)
+    print("Vertical distance to camera: (m)", camera.dist_y)
     print("Heading direction to camera: (deg)", camera.heading_xz * 180 / math.pi, camera.heading_y * 180 / math.pi)
 
 
@@ -47,7 +47,8 @@ def load_config():
 if __name__ == '__main__':
     coordinate_format, configuration = load_config()  # Load configuration
     d = Drone(connection="tcp:localhost:5762")  # Load drone
-    c = Camera(configuration, lat_long_format=coordinate_format)  # Create camera
+    c = Camera(configuration, lat_long_format=coordinate_format,
+               camera_activate_radius=configuration['camera']['radius_activate'])  # Create camera
     print('\n\n\n')
     while True:
         c.move_camera(d.get_drone_position())

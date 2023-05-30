@@ -151,7 +151,6 @@ class D100(Camera):
                 return None
             return self.interp(x)
         return None
-
     def test(self, lr=(5.5, 0), ud=(0, 0), angle=0):
         [5.5, ]
         dis = 0.391886608016

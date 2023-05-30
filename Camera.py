@@ -7,11 +7,12 @@ class Camera:
     A class to handle the math for the camera's pan, tilt, and zoom
      as well as actually doing those things in real life.
     """
-    def __init__(self, config: dict, lat_long_format='degrees'):
+    def __init__(self, config: dict, lat_long_format='degrees', camera_activate_radius=0):
         """
         Initialize the values and convert to decimal if needed
         :param config: the configuration dictionary
         :param lat_long_format: the format the latitude and longitude are in
+        :param camera_activate_radius: the horizontal radius (m) that the drone must be in for the camera to record
         """
         assert lat_long_format in ['degrees', 'decimal']
         if lat_long_format == 'degrees':
@@ -29,7 +30,7 @@ class Camera:
         self.heading_y = -1
         self.zoom = -1
         self.drone_loc = []
-
+        self.camera_activate_radius = camera_activate_radius
     def degrees_to_decimal(self, coord):
         """
         A function to convert a coordinate to decimal (format 35°45'31.2"N or 78°53'59.5"W)
@@ -54,7 +55,7 @@ class Camera:
         :return: The heading directions required and the distances vertically and horizontally from the drone
         """
         drone_lat_long = self.drone_loc[:2]
-        dist_xz = geodesic(drone_lat_long, [self.lat, self.long]).feet
+        dist_xz = geodesic(drone_lat_long, [self.lat, self.long]).meters
         # ^ Distance as the crow flies between us and the drone. Uses oblate spheroid for Earth
         dist_y = self.drone_loc[2] - self.alt
         # ^ Difference in altitude
@@ -87,5 +88,6 @@ class Camera:
         """
         self.drone_loc = drone_loc
         self.update()
-        #  Do camera stuff
+        if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am i in the radius?
+            print("I would have moved the camera, but not implemented.")
 

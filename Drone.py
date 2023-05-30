@@ -39,7 +39,6 @@ class Drone:
             self.lat = msg.lat * 10**-7  # Convert latitude, longitude, and altitude to the correct order of magnitude.
             self.long = msg.lon * 10**-7
             self.alt = msg.alt * 10**-3
-
         else:
             self.lat, self.long, self.alt = self.debug_pos_function()  # Call the debug function
 
