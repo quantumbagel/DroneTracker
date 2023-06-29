@@ -70,6 +70,23 @@ class Camera:
         heading_y = math.atan2(dist_y, dist_xz)
 
         return heading_xz, heading_y, dist_xz, dist_y
+    def calculate_heading_directions2(prev, curr):
+	"""
+	A function to calculate heading.
+	:param prev: The previous position (lat/long)
+	:param curr: The current position (lat/long)
+	:return: The heading
+	"""
+	pi_c = math.pi / 180
+	first_lat = prev[0] * pi_c
+	first_lon = prev[1] * pi_c
+	second_lat = curr[0] * pi_c
+	second_lon = curr[1] * pi_c
+	y = math.sin(second_lon - first_lon) * math.cos(second_lat)
+	x = (math.cos(first_lat) * math.sin(second_lat)) - (
+		math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
+	heading_rads = math.atan2(y, x)
+	return ((heading_rads * 180 / math.pi) + 360) % 360
 
     def calculate_zoom(self):
         """
