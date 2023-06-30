@@ -7,6 +7,7 @@ class Camera:
     A class to handle the math for the camera's pan, tilt, and zoom
      as well as actually doing those things in real life.
     """
+
     def __init__(self, config: dict, lat_long_format='degrees', camera_activate_radius=0):
         """
         Initialize the values and convert to decimal if needed
@@ -31,6 +32,7 @@ class Camera:
         self.zoom = -1
         self.drone_loc = []
         self.camera_activate_radius = camera_activate_radius
+
     def degrees_to_decimal(self, coord):
         """
         A function to convert a coordinate to decimal (format 35°45'31.2"N or 78°53'59.5"W)
@@ -70,23 +72,24 @@ class Camera:
         heading_y = math.atan2(dist_y, dist_xz)
 
         return heading_xz, heading_y, dist_xz, dist_y
+
     def calculate_heading_directions2(prev, curr):
-	"""
-	A function to calculate heading.
-	:param prev: The previous position (lat/long)
-	:param curr: The current position (lat/long)
-	:return: The heading
-	"""
-	pi_c = math.pi / 180
-	first_lat = prev[0] * pi_c
-	first_lon = prev[1] * pi_c
-	second_lat = curr[0] * pi_c
-	second_lon = curr[1] * pi_c
-	y = math.sin(second_lon - first_lon) * math.cos(second_lat)
-	x = (math.cos(first_lat) * math.sin(second_lat)) - (
-		math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
-	heading_rads = math.atan2(y, x)
-	return ((heading_rads * 180 / math.pi) + 360) % 360
+        """
+        A function to calculate heading.
+        :param prev: The previous position (lat/long)
+        :param curr: The current position (lat/long)
+        :return: The heading
+        """
+        pi_c = math.pi / 180
+        first_lat = prev[0] * pi_c
+        first_lon = prev[1] * pi_c
+        second_lat = curr[0] * pi_c
+        second_lon = curr[1] * pi_c
+        y = math.sin(second_lon - first_lon) * math.cos(second_lat)
+        x = (math.cos(first_lat) * math.sin(second_lat)) - (
+                math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
+        heading_rads = math.atan2(y, x)
+        return ((heading_rads * 180 / math.pi) + 360) % 360
 
     def calculate_zoom(self):
         """
@@ -107,4 +110,3 @@ class Camera:
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am i in the radius?
             print("I would have moved the camera, but not implemented.")
-

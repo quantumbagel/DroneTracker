@@ -10,3 +10,7 @@ drone:
 scale: # at 1x zoom
     dist: 10 # at 10 meters away from the camera...
     width: 10 # its viewing angle is 10 meters wide
+login:
+    ip: "an example ip" # the ip of the camera
+    username: "johndoe" # the username of the camera
+    password: "p@$$w0rd" # the password of the camera

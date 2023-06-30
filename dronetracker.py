@@ -34,7 +34,7 @@ def load_config():
     y = YAML()
     config = y.load(open('config.yml'))
     config['camera']['lat'] = str(config['camera']['lat'])
-    config['camera']['ong'] = str(config['camera']['long'])
+    config['camera']['long'] = str(config['camera']['long'])
     if '°' not in config['camera']['lat']:  # decimal format
         coord_format = 'decimal'
         print("Recognized decimal format in config!")
