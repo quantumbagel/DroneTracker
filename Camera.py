@@ -1,5 +1,6 @@
 import math
 from geopy.distance import geodesic
+from sensecam_control import vapix_control, vapix_config
 
 
 class Camera:
@@ -32,6 +33,9 @@ class Camera:
         self.zoom = -1
         self.drone_loc = []
         self.camera_activate_radius = camera_activate_radius
+        self.controller = vapix_control.CameraControl(config['login']['ip'], config['login']['username'],
+                                                      config['login']['username'])
+
 
     def degrees_to_decimal(self, coord):
         """
@@ -108,5 +112,6 @@ class Camera:
         """
         self.drone_loc = drone_loc
         self.update()
-        if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am i in the radius?
-            print("I would have moved the camera, but not implemented.")
+        if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
+            self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+            # TODO: test the controller and determine the offset
