@@ -5,3 +5,4 @@ geopy~=2.3.0
 ruamel.yaml
 pyserial~=3.5
 sensecam-control
+keyboard
