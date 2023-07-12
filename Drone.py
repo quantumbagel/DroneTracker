@@ -26,6 +26,7 @@ class Drone:
                                                       mavutil.mavlink.MAV_DATA_STREAM_ALL, 120, 1)
             self.get_drone_position()
 
+
     def update_drone_position(self):
         """
         Get the position of the drone and save it to the class
@@ -49,3 +50,17 @@ class Drone:
         """
         self.update_drone_position()
         return self.lat, self.long, self.alt
+
+    def wait_for_armed(self):
+        """
+        A function to wait for the drone to arm
+        :return: none
+        """
+        return self.vehicle.motors_armed_wait()
+
+    def is_armed(self):
+        """
+        A function to check if the drone is currently armed
+        :return: none
+        """
+        return self.vehicle.motors_armed()

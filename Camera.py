@@ -3,13 +3,29 @@ from geopy.distance import geodesic
 from sensecam_control import vapix_control, vapix_config
 
 
+class NullController:
+    """
+    A controller class to act as an "imposter" to the main code
+    """
+    def __init__(self):
+        return
+
+    def absolute_move(self, *args):
+        return
+
+
 class Camera:
     """
     A class to handle the math for the camera's pan, tilt, and zoom
      as well as actually doing those things in real life.
     """
 
-    def __init__(self, config: dict, lat_long_format='degrees', camera_activate_radius=0):
+    def __init__(self,
+                 config: dict,
+                 lat_long_format='degrees',
+                 camera_activate_radius=0,
+                 log_on=False,
+                 actually_move=True):
         """
         Initialize the values and convert to decimal if needed
         :param config: the configuration dictionary
@@ -33,8 +49,15 @@ class Camera:
         self.zoom = -1
         self.drone_loc = []
         self.camera_activate_radius = camera_activate_radius
-        self.controller = vapix_control.CameraControl(config['login']['ip'], config['login']['username'],
-                                                      config['login']['username'])
+        self.move = actually_move
+        if self.move:
+            self.controller = vapix_control.CameraControl(config['login']['ip'],
+                                                          config['login']['username'],
+                                                          config['login']['username'])
+        else:
+            self.controller = NullController()
+        self.activated = False
+        self.log = log_on
 
 
     def degrees_to_decimal(self, coord):
@@ -52,10 +75,14 @@ class Camera:
         Calculate the zoom and heading directions via Camera.calculate_heading_directions and Camera.calculate_zoom
         :return: none
         """
-        self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions()
+        self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions(
+            self.drone_loc[:2])
         self.dist, self.zoom = self.calculate_zoom()
+        if self.log:
+            print("[Camera.update]", 'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)',
+                  self.heading_xz, self.heading_y, self.dist_xz, self.dist_y, self.dist, self.zoom)
 
-    def calculate_heading_directions(self):
+    def calculate_heading_directions_deprecated(self):
         """
         Calculate the heading directions for the camera.
         :return: The heading directions required and the distances vertically and horizontally from the drone
@@ -77,23 +104,27 @@ class Camera:
 
         return heading_xz, heading_y, dist_xz, dist_y
 
-    def calculate_heading_directions2(prev, curr):
+    def calculate_heading_directions(self, drone_lat_long):
         """
         A function to calculate heading.
-        :param prev: The previous position (lat/long)
-        :param curr: The current position (lat/long)
+        :param drone_lat_long: The drone position (lat/long)
         :return: The heading
         """
         pi_c = math.pi / 180
-        first_lat = prev[0] * pi_c
-        first_lon = prev[1] * pi_c
-        second_lat = curr[0] * pi_c
-        second_lon = curr[1] * pi_c
+        camera_lat_long = [self.lat, self.long]
+        first_lat = camera_lat_long[0] * pi_c
+        first_lon = camera_lat_long[1] * pi_c
+        second_lat = drone_lat_long[0] * pi_c
+        second_lon = drone_lat_long[1] * pi_c
         y = math.sin(second_lon - first_lon) * math.cos(second_lat)
         x = (math.cos(first_lat) * math.sin(second_lat)) - (
                 math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
         heading_rads = math.atan2(y, x)
-        return ((heading_rads * 180 / math.pi) + 360) % 360
+        heading_xz = ((heading_rads / pi_c) + 360) % 360
+        dist_xz = geodesic(camera_lat_long, drone_lat_long).meters
+        dist_y = self.drone_loc[2] - self.alt
+        heading_y = math.atan2(dist_y, dist_xz) / pi_c
+        return heading_xz, heading_y, dist_xz, dist_y
 
     def calculate_zoom(self):
         """
@@ -113,5 +144,15 @@ class Camera:
         self.drone_loc = drone_loc
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
+            if self.log:
+                print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
             self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+            self.activated = True
             # TODO: test the controller and determine the offset
+        else:
+            if self.activated:
+                if self.log:
+                    print("[Camera.move_camera]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
+                self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
+                                              self.config['camera']['deactivate_pos']['tilt'])
+            self.activated = False

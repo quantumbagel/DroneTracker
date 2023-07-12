@@ -3,6 +3,10 @@ camera:
    lat: "35.751253" # can be decimal int, string, or degrees copied from Google Maps (format 35°45'31.2"N or 78°53'59.5"W)
    long: "-78.902028"
    radius_activate: 0 # an int/float containing the horizontal (top-down) meter radius for the camera to start recording and moving
+   offset: 0  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
+   deactivate_pos:
+     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
+     tilt: 0 # the tilt to go to when the camera deactivates (0 is no pan change)
 drone:
     x: 3 # (in meters, relative to front of drone)
     y: 4
