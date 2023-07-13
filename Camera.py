@@ -7,6 +7,7 @@ class NullController:
     """
     A controller class to act as an "imposter" to the main code
     """
+
     def __init__(self):
         return
 
@@ -58,7 +59,9 @@ class Camera:
             self.controller = NullController()
         self.activated = False
         self.log = log_on
-
+        self.current_pan = 0
+        self.current_tilt = 0
+        self.current_zoom = 0
 
     def degrees_to_decimal(self, coord):
         """
@@ -132,7 +135,7 @@ class Camera:
         :return: the absolute distance to the drone, and the necessary zoom value
         """
         dist = math.sqrt(self.dist_xz ** 2 + self.dist_y ** 2)
-        max_dimension = max([i for i in self.config['drone'].values()])
+        max_dimension = max([i for i in self.config['drone'].values() if 'str' not in str(type(i))])
         zoom = (dist * max_dimension) / (self.config['scale']['dist'] * self.config['scale']['width'])
         return dist, zoom
 
@@ -144,15 +147,43 @@ class Camera:
         self.drone_loc = drone_loc
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
-            if self.log:
-                print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
-            self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+
+            if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
+                    (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
+                if self.log:
+                    print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
+                self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+                self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+                self.current_pan = self.heading_xz
+                self.current_tilt = self.heading_y
+                self.current_zoom = self.zoom
+            else:
+                if self.log:
+                    print("[Camera.move_camera]", 'Step is not significant enough to move the camera.')
+
             self.activated = True
             # TODO: test the controller and determine the offset
         else:
             if self.activated:
                 if self.log:
-                    print("[Camera.move_camera]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
+                    print("[Camera.move_camera]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y,
+                          self.zoom)
                 self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
                                               self.config['camera']['deactivate_pos']['tilt'])
+                self.current_pan = self.heading_xz
+                self.current_tilt = self.heading_y
+                self.current_zoom = self.zoom
             self.activated = False
+
+    def deactivate(self):
+        """
+        Force deactivate the camera.
+        :return: none
+        """
+        if self.log:
+            print("[Camera.deactivate]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
+        self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
+                                      self.config['camera']['deactivate_pos']['tilt'])
+        self.current_pan = self.heading_xz
+        self.current_tilt = self.heading_y
+        self.current_zoom = self.zoom

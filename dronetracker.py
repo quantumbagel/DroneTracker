@@ -5,25 +5,22 @@ from Drone import Drone
 from Camera import Camera
 import sys
 
-SCROLLING_CONSOLE_LOG = True  # if true, the console log will print indefinitely, if false, it will be overwritten
 SLEEP = 0  # time between updates
+
+
+def dprint(function, *args):
+    if configuration['debug']:
+        print("[" + function + "]", *args)
 
 
 def print_information(camera):
     """ A function to print some information about the drone relative to the camera
         :param camera: the camera object to obtain things to print from
     """
-    if SCROLLING_CONSOLE_LOG:
-        print()
-    else:
-        for _ in range(4):  # delete lines using vt100
-            sys.stdout.write('\x1b[1A')
-            sys.stdout.write('\x1b[2K')
-
-    print("Distance to camera: (m)", camera.dist)
-    print("Horizontal distance to camera: (m)", camera.dist_xz)
-    print("Vertical distance to camera: (m)", camera.dist_y)
-    print("Heading direction to camera: (deg)", camera.heading_xz * 180 / math.pi, camera.heading_y * 180 / math.pi)
+    dprint("print_info", "Distance to camera: (m)", camera.dist)
+    dprint("print_info", "Horizontal distance to camera: (m)", camera.dist_xz)
+    dprint("print_info", "Vertical distance to camera: (m)", camera.dist_y)
+    dprint("print_info", "Heading direction to camera: (deg)", camera.heading_xz, camera.heading_y)
 
 
 def load_config():
@@ -37,21 +34,50 @@ def load_config():
     config['camera']['long'] = str(config['camera']['long'])
     if '°' not in config['camera']['lat']:  # decimal format
         coord_format = 'decimal'
-        print("Recognized decimal format in config!")
     else:
         coord_format = 'degrees'
-        print("Recognized degree format in config!")
     return coord_format, config
+
+
+def get_drone(connection_address='tcp:localhost:5762'):
+    """
+    Wait for the drone to come alive and connect to it.
+    :return: the Drone
+    """
+    att = 1
+    while True:
+        try:
+            drone_obj = Drone(connection=connection_address)  # Load drone
+            break
+        except ConnectionRefusedError:
+            dprint("get_drone", "Failed on attempt " + str(att))
+            att += 1
+    return drone_obj
 
 
 if __name__ == '__main__':
     coordinate_format, configuration = load_config()  # Load configuration
-    d = Drone(connection="tcp:localhost:5762")  # Load drone
-    c = Camera(configuration, lat_long_format=coordinate_format,
-               camera_activate_radius=configuration['camera']['radius_activate'])  # Create camera
+    dprint('main', 'Waiting for drone...')
+    d = get_drone(connection_address=configuration['drone']['address'])
+    dprint('main', 'Got connection to drone!')
+    c = Camera(configuration,
+               lat_long_format=coordinate_format,
+               camera_activate_radius=configuration['camera']['radius_activate'],
+               actually_move=False,
+               log_on=configuration['debug'])  # Create camera
     print('\n\n\n')
     while True:
-        c.move_camera(d.get_drone_position())
+        lat, long, alt = d.get_drone_position()
+        if lat == -1 and long == alt == 0:
+            dprint('main', "Lost drone connection!")
+            c.deactivate()
+            dprint('main', 'Waiting for drone...')
+            del d
+            d = get_drone()
+            dprint('main', 'Got connection to drone!')
+            continue
+        else:
+            c.move_camera([lat, long, alt])
         print_information(c)
         if SLEEP:
             time.sleep(SLEEP)
