@@ -32,7 +32,10 @@ class Drone:
             self.vehicle.mav.request_data_stream_send(self.vehicle.target_system, self.vehicle.target_component,
                                                       mavutil.mavlink.MAV_DATA_STREAM_ALL, 120, 1)  # Update the data
             try:
-                msg = self.vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking=True)  # Get the position message
+                msg = self.vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=1)  # Get the position message
+                if 'None' in str(type(msg)):
+                    print('[Drone] GLOBAL_POSITION request timed out! Drone is disconnected!')
+                    return 1
             except ConnectionResetError:
                 return 1
             self.lat = msg.lat * 10 ** -7
@@ -55,9 +58,15 @@ class Drone:
     def wait_for_armed(self):
         """
         A function to wait for the drone to arm
-        :return: none
+        :return: 1 if drone disconnects, 0 if sucessful
         """
-        return self.vehicle.motors_armed_wait()
+        while True:
+            m = self.vehicle.wait_heartbeat(timeout=1)
+            if m is None:
+                return 1
+            if self.vehicle.motors_armed():
+                break
+        return 0
 
     def is_armed(self):
         """

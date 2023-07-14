@@ -5,7 +5,6 @@ from Drone import Drone
 from Camera import Camera
 import sys
 
-SLEEP = 0  # time between updates
 
 
 def dprint(function, *args):
@@ -60,13 +59,18 @@ if __name__ == '__main__':
     dprint('main', 'Waiting for drone...')
     d = get_drone(connection_address=configuration['drone']['address'])
     dprint('main', 'Got connection to drone!')
+    dprint('main', 'Waiting for drone to arm...')
+    d.wait_for_armed()
+    dprint('main', 'Drone has armed! Now tracking!')
     c = Camera(configuration,
                lat_long_format=coordinate_format,
                camera_activate_radius=configuration['camera']['radius_activate'],
-               actually_move=False,
+               actually_move=True,
                log_on=configuration['debug'])  # Create camera
-    print('\n\n\n')
     while True:
+        if not d.is_armed():
+            dprint('main', 'Drone is no longer armed. Waiting for drone to arm...')
+            d.wait_for_armed()
         lat, long, alt = d.get_drone_position()
         if lat == -1 and long == alt == 0:
             dprint('main', "Lost drone connection!")
@@ -75,9 +79,12 @@ if __name__ == '__main__':
             del d
             d = get_drone()
             dprint('main', 'Got connection to drone!')
+            dprint('main', 'Waiting for drone to arm...')
+            d.wait_for_armed()
+            dprint('main', 'Drone has armed! Now tracking!')
             continue
         else:
             c.move_camera([lat, long, alt])
         print_information(c)
-        if SLEEP:
-            time.sleep(SLEEP)
+        if configuration['camera']['wait']:
+            time.sleep(configuration['camera']['wait'])

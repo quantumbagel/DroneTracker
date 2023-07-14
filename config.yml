@@ -8,6 +8,7 @@ camera:
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
     tilt: 0 # the tilt to go to when the camera deactivates (0 is no pan change)
   min_step: 0 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
+  wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
 drone:
   address: "tcp:localhost:5762"
   x: 3 # (in meters, relative to front of drone)
