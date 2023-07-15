@@ -13,7 +13,10 @@ class NullController:
 
     def absolute_move(self, *args):
         return
-
+    def stop_recording(self, *args):
+        return True
+    def start_recording(self, *args):
+        return 'fakerecordingname', 0
 
 class Camera:
     """
@@ -26,7 +29,9 @@ class Camera:
                  lat_long_format='degrees',
                  camera_activate_radius=0,
                  log_on=False,
-                 actually_move=True):
+                 actually_move=True,
+                 disk_name='SD_DISK',
+                 profile_name=None):
         """
         Initialize the values and convert to decimal if needed
         :param config: the configuration dictionary
@@ -51,17 +56,23 @@ class Camera:
         self.drone_loc = []
         self.camera_activate_radius = camera_activate_radius
         self.move = actually_move
+        self.disk_name = disk_name
         if self.move:
             self.controller = vapix_control.CameraControl(config['login']['ip'],
                                                           config['login']['username'],
                                                           config['login']['username'])
+            self.media = vapix_config.CameraConfiguration(config['login']['ip'],
+                                                          config['login']['username'],
+                                                          config['login']['username'])
         else:
             self.controller = NullController()
+            self.media = NullController()
         self.activated = False
         self.log = log_on
         self.current_pan = 0
         self.current_tilt = 0
         self.current_zoom = 0
+        self.current_recording_name = ''
 
     def degrees_to_decimal(self, coord):
         """
@@ -147,7 +158,16 @@ class Camera:
         self.drone_loc = drone_loc
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
-
+            while True:
+                rc_name, out = self.media.start_recording(self.disk_name)
+                if out == 1:
+                    if self.log:
+                        print("[Camera.move_camera]", 'failed to start recording!', 'error: ', rc_name)
+                    continue
+                self.current_recording_name = rc_name
+                break
+            if self.log:
+                print("[Camera.move_camera]", "Successfully started recording!")
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
                 if self.log:
@@ -165,14 +185,7 @@ class Camera:
             # TODO: test the controller and determine the offset
         else:
             if self.activated:
-                if self.log:
-                    print("[Camera.move_camera]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y,
-                          self.zoom)
-                self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
-                                              self.config['camera']['deactivate_pos']['tilt'])
-                self.current_pan = self.heading_xz
-                self.current_tilt = self.heading_y
-                self.current_zoom = self.zoom
+                self.deactivate()
             self.activated = False
 
     def deactivate(self):
@@ -180,6 +193,18 @@ class Camera:
         Force deactivate the camera.
         :return: none
         """
+        if self.current_recording_name != '':
+            while True:
+                if self.log:
+                    print("[Camera.deactivate]", 'stopping the recording...')
+                stopped = self.media.stop_recording(self.current_recording_name)
+                if stopped:
+                    if self.log:
+                        print("[Camera.deactivate]", 'Success!')
+                    break
+                else:
+                    if self.log:
+                        print("[Camera.deactivate]", 'failed! retrying...')
         if self.log:
             print("[Camera.deactivate]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
         self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
@@ -187,3 +212,4 @@ class Camera:
         self.current_pan = self.heading_xz
         self.current_tilt = self.heading_y
         self.current_zoom = self.zoom
+

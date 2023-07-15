@@ -67,6 +67,7 @@ if __name__ == '__main__':
                camera_activate_radius=configuration['camera']['radius_activate'],
                actually_move=True,
                log_on=configuration['debug'])  # Create camera
+
     while True:
         if not d.is_armed():
             dprint('main', 'Drone is no longer armed. Waiting for drone to arm...')

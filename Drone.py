@@ -20,7 +20,6 @@ class Drone:
         self.alt = None
         if debug is None:
             self.vehicle = mavutil.mavlink_connection(connection)
-            self.vehicle.wait_heartbeat()
             self.get_drone_position()
 
     def update_drone_position(self):
