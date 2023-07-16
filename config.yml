@@ -4,7 +4,7 @@ camera:
   long: "-78.902028"
   radius_activate: 0 # an int/float containing the horizontal (top-down) meter radius for the camera to start recording and moving
   offset: 0  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
-  deactivate_pos:
+  deactivate_pos:  # This example will make the camera look straight down without panning it.
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
     tilt: -90 # the tilt to go to when the camera deactivates (0 is no pan change)
   min_step: 0 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.

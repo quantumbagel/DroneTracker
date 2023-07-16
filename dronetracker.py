@@ -62,7 +62,7 @@ if __name__ == '__main__':
     c = Camera(configuration,
                lat_long_format=coordinate_format,
                camera_activate_radius=configuration['camera']['radius_activate'],
-               actually_move=False,
+               actually_move=False,  # TODO: change me to true
                log_level=configuration['debug'])  # Create camera
 
     while True:

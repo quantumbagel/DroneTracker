@@ -65,7 +65,7 @@ class Drone:
         while True:
             m = self.vehicle.wait_heartbeat(timeout=1)
             if self.log_level:
-                print("[Drone] waiting for the drone to arm... on cycle", run)
+                print("[Drone.wait_for_armed] waiting for the drone to arm... on cycle", run)
             if m is None:
                 return 1
             if self.vehicle.motors_armed():
