@@ -17,7 +17,7 @@ class NullController:
     def stop_recording(self, *args):
         return True
 
-    def start_recording(self, *args):
+    def start_recording(self, *args, profile=None):
         return 'fakerecordingname', 0
 
 
@@ -31,7 +31,7 @@ class Camera:
                  config: dict,
                  lat_long_format='degrees',
                  camera_activate_radius=0,
-                 log_on=False,
+                 log_level=1,  # 1 is normal, 0 is off, 2 is MAX
                  actually_move=True,
                  disk_name='SD_DISK',
                  profile_name=None):
@@ -60,6 +60,7 @@ class Camera:
         self.camera_activate_radius = camera_activate_radius
         self.move = actually_move
         self.disk_name = disk_name
+        self.profile_name = profile_name
         if self.move:
             self.controller = vapix_control.CameraControl(config['login']['ip'],
                                                           config['login']['username'],
@@ -71,7 +72,7 @@ class Camera:
             self.controller = NullController()
             self.media = NullController()
         self.activated = False
-        self.log = log_on
+        self.log = log_level
         self.current_pan = 0
         self.current_tilt = 0
         self.current_zoom = 0
@@ -95,7 +96,7 @@ class Camera:
         self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions(
             self.drone_loc[:2])
         self.dist, self.zoom = self.calculate_zoom()
-        if self.log:
+        if self.log > 1:
             print("[Camera.update]", 'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)',
                   self.heading_xz, self.heading_y, self.dist_xz, self.dist_y, self.dist, self.zoom)
 
@@ -163,7 +164,7 @@ class Camera:
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
             if not self.activated:
                 while True:
-                    rc_name, out = self.media.start_recording(self.disk_name)
+                    rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
                     if out == 1:
                         if self.log:
                             print("[Camera.move_camera]", 'failed to start recording!', 'error: ', rc_name)
@@ -174,7 +175,7 @@ class Camera:
                     print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
-                if self.log:
+                if self.log > 1:
                     print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
                 self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
                 self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
@@ -182,7 +183,7 @@ class Camera:
                 self.current_tilt = self.heading_y
                 self.current_zoom = self.zoom
             else:
-                if self.log:
+                if self.log > 1:
                     print("[Camera.move_camera]", 'Step is not significant enough to move the camera.')
 
             self.activated = True

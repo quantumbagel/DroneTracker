@@ -10,7 +10,7 @@ camera:
   min_step: 0 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
 drone:
-  address: "tcp:localhost:5762"
+  address: "tcp:localhost:5763"
   x: 3 # (in meters, relative to front of drone)
   y: 4
   z: 5
@@ -21,4 +21,4 @@ login:
   ip: "1.1.1.1" # the ip of the camera
   username: "johndoe" # the username of the camera
   password: "p@$$w0rd" # the password of the camera
-debug: true
+debug: 1  # the log level. 0 is off. 1 is normal. 2 is all logs.

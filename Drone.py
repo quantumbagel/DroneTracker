@@ -7,7 +7,7 @@ class Drone:
     A class to represent the drone and handle the connection and location of it
     """
 
-    def __init__(self, debug=None, connection='tcp:localhost:5762'):
+    def __init__(self, debug=None, log_level=1, connection='tcp:localhost:5762'):
         """
         Initialize and connect to the drone.
         :param debug: a function to replace the drone for testing. Can be None to turn this off
@@ -18,9 +18,11 @@ class Drone:
         self.lat = None
         self.long = None
         self.alt = None
+        self.log_level = log_level
         if debug is None:
             self.vehicle = mavutil.mavlink_connection(connection)
             self.get_drone_position()
+
 
     def update_drone_position(self):
         """
@@ -59,12 +61,16 @@ class Drone:
         A function to wait for the drone to arm
         :return: 1 if drone disconnects, 0 if sucessful
         """
+        run = 1
         while True:
             m = self.vehicle.wait_heartbeat(timeout=1)
+            if self.log_level:
+                print("[Drone] waiting for the drone to arm... on cycle", run)
             if m is None:
                 return 1
             if self.vehicle.motors_armed():
                 break
+            run += 1
         return 0
 
     def is_armed(self):
