@@ -6,7 +6,7 @@ camera:
   offset: 0  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
   deactivate_pos:
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
-    tilt: 0 # the tilt to go to when the camera deactivates (0 is no pan change)
+    tilt: -90 # the tilt to go to when the camera deactivates (0 is no pan change)
   min_step: 0 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
 drone:
@@ -18,7 +18,7 @@ scale: # at 1x zoom
   dist: 10 # at 10 meters away from the camera...
   width: 10 # its viewing angle is 10 meters wide
 login:
-  ip: "an example ip" # the ip of the camera
+  ip: "1.1.1.1" # the ip of the camera
   username: "johndoe" # the username of the camera
   password: "p@$$w0rd" # the password of the camera
 debug: true

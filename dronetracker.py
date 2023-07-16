@@ -1,10 +1,7 @@
 from ruamel.yaml import YAML
-import math
 import time
 from Drone import Drone
 from Camera import Camera
-import sys
-
 
 
 def dprint(function, *args):
@@ -65,12 +62,13 @@ if __name__ == '__main__':
     c = Camera(configuration,
                lat_long_format=coordinate_format,
                camera_activate_radius=configuration['camera']['radius_activate'],
-               actually_move=True,
+               actually_move=False,
                log_on=configuration['debug'])  # Create camera
 
     while True:
         if not d.is_armed():
             dprint('main', 'Drone is no longer armed. Waiting for drone to arm...')
+            c.deactivate()
             d.wait_for_armed()
         lat, long, alt = d.get_drone_position()
         if lat == -1 and long == alt == 0:

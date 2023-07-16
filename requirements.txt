@@ -4,5 +4,5 @@ scipy~=1.10.1
 geopy~=2.3.0
 ruamel.yaml
 pyserial~=3.5
-sensecam-control
+sensecam-control @ git+https://github.com/quantumbagel/sensecam-control-record@master
 keyboard

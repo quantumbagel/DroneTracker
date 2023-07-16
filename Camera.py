@@ -13,10 +13,13 @@ class NullController:
 
     def absolute_move(self, *args):
         return
+
     def stop_recording(self, *args):
         return True
+
     def start_recording(self, *args):
         return 'fakerecordingname', 0
+
 
 class Camera:
     """
@@ -158,16 +161,17 @@ class Camera:
         self.drone_loc = drone_loc
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
-            while True:
-                rc_name, out = self.media.start_recording(self.disk_name)
-                if out == 1:
-                    if self.log:
-                        print("[Camera.move_camera]", 'failed to start recording!', 'error: ', rc_name)
-                    continue
-                self.current_recording_name = rc_name
-                break
-            if self.log:
-                print("[Camera.move_camera]", "Successfully started recording!")
+            if not self.activated:
+                while True:
+                    rc_name, out = self.media.start_recording(self.disk_name)
+                    if out == 1:
+                        if self.log:
+                            print("[Camera.move_camera]", 'failed to start recording!', 'error: ', rc_name)
+                        continue
+                    self.current_recording_name = rc_name
+                    break
+                if self.log:
+                    print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
                 if self.log:
@@ -205,11 +209,18 @@ class Camera:
                 else:
                     if self.log:
                         print("[Camera.deactivate]", 'failed! retrying...')
+        deactivate_pan = self.config['camera']['deactivate_pos']['pan']
+        deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
+        if not deactivate_pan:
+            deactivate_pan = self.current_pan
+        if not deactivate_tilt:
+            deactivate_tilt = self.current_tilt
         if self.log:
-            print("[Camera.deactivate]", 'deactivating to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
-        self.controller.absolute_move(self.config['camera']['deactivate_pos']['pan'],
-                                      self.config['camera']['deactivate_pos']['tilt'])
-        self.current_pan = self.heading_xz
-        self.current_tilt = self.heading_y
-        self.current_zoom = self.zoom
+            print("[Camera.deactivate]", 'deactivating to (p, t)', deactivate_pan, deactivate_tilt)
+
+        self.controller.absolute_move(deactivate_pan,
+                                      deactivate_tilt)
+        self.current_pan = deactivate_pan
+        self.current_tilt = deactivate_tilt
+        self.activated = False
 
