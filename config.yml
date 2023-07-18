@@ -9,11 +9,16 @@ camera:
     tilt: -90 # the tilt to go to when the camera deactivates (0 is no pan change)
   min_step: 0 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
+  activate_method: "armed" # the method to activate the recording.
+  # armed: when the drone arms/disarms
+  # file: when the file 'record' starts with a 1 or 0, start/stop recording
+  # relative-height: you must put "relative-height5" or a number. This number is the minimum relative height from the takeoff spot from which the drone will start/stop recording ("relative-height5" = 5 meters)
 drone:
   address: "tcp:localhost:5763"
   x: 3 # (in meters, relative to front of drone)
   y: 4
   z: 5
+  msg_timeout: 1
 scale: # at 1x zoom
   dist: 10 # at 10 meters away from the camera...
   width: 10 # its viewing angle is 10 meters wide

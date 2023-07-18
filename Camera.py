@@ -9,16 +9,22 @@ class NullController:
     """
 
     def __init__(self):
+        self.fake_value = 0
         return
 
     def absolute_move(self, *args):
+        self.fake_value += 1
+
         return
 
     def stop_recording(self, *args):
+        self.fake_value += 1
         return True
 
     def start_recording(self, *args, profile=None):
-        return 'fakerecordingname', 0
+
+        self.fake_value += 1
+        return 'fake-recording-name', 0
 
 
 class Camera:
@@ -61,6 +67,7 @@ class Camera:
         self.move = actually_move
         self.disk_name = disk_name
         self.profile_name = profile_name
+        self.record_method = self.config['camera']['activate_method']
         if self.move:
             self.controller = vapix_control.CameraControl(config['login']['ip'],
                                                           config['login']['username'],
@@ -150,7 +157,9 @@ class Camera:
         :return: the absolute distance to the drone, and the necessary zoom value
         """
         dist = math.sqrt(self.dist_xz ** 2 + self.dist_y ** 2)
-        max_dimension = max([i for i in self.config['drone'].values() if 'str' not in str(type(i))])
+        max_dimension = max([i for i in [self.config['drone']['x'],
+                                         self.config['drone']['y'],
+                                         self.config['drone']['z']]])
         zoom = (dist * max_dimension) / (self.config['scale']['dist'] * self.config['scale']['width'])
         return dist, zoom
 
@@ -161,6 +170,7 @@ class Camera:
         """
         self.drone_loc = drone_loc
         self.update()
+
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
             if not self.activated:
                 while True:
@@ -224,4 +234,3 @@ class Camera:
         self.current_pan = deactivate_pan
         self.current_tilt = deactivate_tilt
         self.activated = False
-
