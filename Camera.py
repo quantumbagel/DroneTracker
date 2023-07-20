@@ -71,10 +71,11 @@ class Camera:
         if self.move:
             self.controller = vapix_control.CameraControl(config['login']['ip'],
                                                           config['login']['username'],
-                                                          config['login']['username'])
+                                                          config['login']['password'])
             self.media = vapix_config.CameraConfiguration(config['login']['ip'],
                                                           config['login']['username'],
-                                                          config['login']['username'])
+                                                          config['login']['password'])
+            self.media = NullController()
         else:
             self.controller = NullController()
             self.media = NullController()
