@@ -6,3 +6,4 @@ ruamel.yaml
 pyserial~=3.5
 sensecam-control @ git+https://github.com/quantumbagel/sensecam-control-record@master
 keyboard
+xmltodict
