@@ -54,10 +54,11 @@ def get_drone(connection_address='tcp:localhost:5762', timeout=1):
 
 
 def wait_for_record():
-    global d
+    global d, c
     while True:
         should = should_be_recording()
         if should == -1:  # lost drone connection
+            c.deactivate()
             d = get_drone(connection_address=configuration['drone']['address'],
                           timeout=configuration['drone']['msg_timeout'])
             continue
@@ -117,8 +118,9 @@ if __name__ == '__main__':
     while True:
         s = should_be_recording()
         if s == -1:
+            c.deactivate()
             d = get_drone()
-        if not should_be_recording():
+        if not s:
             dprint('main', 1, 'I should not be recording. Deactivating the camera...')
             c.deactivate()
             dprint('main', 1, 'Now waiting for recording...')

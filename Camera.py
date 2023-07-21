@@ -75,7 +75,6 @@ class Camera:
             self.media = vapix_config.CameraConfiguration(config['login']['ip'],
                                                           config['login']['username'],
                                                           config['login']['password'])
-            self.media = NullController()
         else:
             self.controller = NullController()
             self.media = NullController()
@@ -182,13 +181,13 @@ class Camera:
                         continue
                     self.current_recording_name = rc_name
                     break
+                self.activated = True
                 if self.log:
                     print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
                 if self.log > 1:
                     print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
-                self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
                 self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
                 self.current_pan = self.heading_xz
                 self.current_tilt = self.heading_y
@@ -197,7 +196,6 @@ class Camera:
                 if self.log > 1:
                     print("[Camera.move_camera]", 'Step is not significant enough to move the camera.')
 
-            self.activated = True
             # TODO: test the controller and determine the offset
         else:
             if self.activated:
@@ -212,7 +210,7 @@ class Camera:
         if self.current_recording_name != '':
             while True:
                 if self.log:
-                    print("[Camera.deactivate]", 'stopping the recording...')
+                    print("[Camera.deactivate]", 'stopping the recording... (name='+self.current_recording_name+')')
                 stopped = self.media.stop_recording(self.current_recording_name)
                 if stopped:
                     if self.log:
@@ -221,6 +219,7 @@ class Camera:
                 else:
                     if self.log:
                         print("[Camera.deactivate]", 'failed! retrying...')
+            self.current_recording_name = ''
         deactivate_pan = self.config['camera']['deactivate_pos']['pan']
         deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
         if not deactivate_pan:
@@ -229,7 +228,6 @@ class Camera:
             deactivate_tilt = self.current_tilt
         if self.log:
             print("[Camera.deactivate]", 'deactivating to (p, t)', deactivate_pan, deactivate_tilt)
-
         self.controller.absolute_move(deactivate_pan,
                                       deactivate_tilt)
         self.current_pan = deactivate_pan
