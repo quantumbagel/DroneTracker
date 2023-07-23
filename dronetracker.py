@@ -58,7 +58,7 @@ def wait_for_record():
     while True:
         should = should_be_recording()
         if should == -1:  # lost drone connection
-            c.deactivate()
+            c.deactivate(delay=0)
             d = get_drone(connection_address=configuration['drone']['address'],
                           timeout=configuration['drone']['msg_timeout'])
             continue
@@ -114,25 +114,40 @@ if __name__ == '__main__':
                camera_activate_radius=configuration['camera']['radius_activate'],
                actually_move=True,
                log_level=configuration['debug'])  # Create camera
-
+    current_deactivate_worker = None
     while True:
         s = should_be_recording()
         if s == -1:
-            c.deactivate()
+            c.deactivate(configuration['camera']['delay'])
             d = get_drone()
         if not s:
             dprint('main', 1, 'I should not be recording. Deactivating the camera...')
-            c.deactivate()
+            if c.activated:
+                current_deactivate_worker = c.deactivate(configuration['camera']['delay'])
+            else:
+                c.deactivate(delay=0)
             dprint('main', 1, 'Now waiting for recording...')
             wait_for_record()
+            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():  # We have reconnected before expiration
+                current_deactivate_worker.cancel()
+                current_deactivate_worker = None
+                dprint('main', 1, 'Detected alive deactivate worker! Continuing to record!')
+            else:
+                current_deactivate_worker = None
             dprint('main', 1, 'done')
         lat, long, alt = d.get_drone_position()
         if lat == -1 and long == alt == 0:
             dprint('main', 1, "Lost drone connection!")
-            c.deactivate()
+            current_deactivate_worker = c.deactivate(configuration['camera']['delay'])
             del d
             d = get_drone()
             wait_for_record()
+            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():  # We have reconnected before expiration
+                current_deactivate_worker.cancel()
+                current_deactivate_worker = None
+                dprint('main', 1, 'Detected alive deactivate worker! Continuing to record!')
+            else:
+                current_deactivate_worker = None
             continue
         else:
             c.move_camera([lat, long, alt])

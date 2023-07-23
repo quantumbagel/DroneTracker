@@ -1,4 +1,7 @@
 import math
+import threading
+import time
+
 from geopy.distance import geodesic
 from sensecam_control import vapix_control, vapix_config
 
@@ -18,11 +21,12 @@ class NullController:
         return
 
     def stop_recording(self, *args):
+        print("STOPPPED recoin")
         self.fake_value += 1
         return True
 
     def start_recording(self, *args, profile=None):
-
+        print("STARTED RECORING")
         self.fake_value += 1
         return 'fake-recording-name', 0
 
@@ -84,6 +88,7 @@ class Camera:
         self.current_tilt = 0
         self.current_zoom = 0
         self.current_recording_name = ''
+        self.deactivating = False
 
     def degrees_to_decimal(self, coord):
         """
@@ -170,7 +175,6 @@ class Camera:
         """
         self.drone_loc = drone_loc
         self.update()
-
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
             if not self.activated:
                 while True:
@@ -181,6 +185,7 @@ class Camera:
                         continue
                     self.current_recording_name = rc_name
                     break
+
                 self.activated = True
                 if self.log:
                     print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
@@ -202,7 +207,18 @@ class Camera:
                 self.deactivate()
             self.activated = False
 
-    def deactivate(self):
+    def deactivate(self, delay=0):
+        if self.log:
+            print("[Camera.deactivate] now starting wait for", delay, 'seconds')
+        if delay:
+            self.deactivating = True
+            worker = threading.Timer(delay,  self._deactivate_function)
+            worker.start()
+            return worker
+        else:
+            self._deactivate_function()
+
+    def _deactivate_function(self):
         """
         Force deactivate the camera.
         :return: none
@@ -233,3 +249,4 @@ class Camera:
         self.current_pan = deactivate_pan
         self.current_tilt = deactivate_tilt
         self.activated = False
+        self.deactivating = False
