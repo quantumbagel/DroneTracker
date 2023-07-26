@@ -40,6 +40,7 @@ def get_drone(timeout=1):
     Wait for the drone to come alive and connect to it.
     :return: the Drone
     """
+    global d
     att = 1
     dprint('get_drone', 1, 'Waiting for drone...')
     while True:
@@ -49,7 +50,7 @@ def get_drone(timeout=1):
             for port in range(configuration['drone']['address'][network_interface][2]):
                 dprint("get_drone", 1, "- connecting to port", port+configuration['drone']['address'][network_interface][1])
                 try:
-                    drone_obj = Drone(connection=configuration['drone']['address'][network_interface][0]+str(port+configuration['drone']['address'][network_interface][1]), timeout=timeout)  # Load drone
+                    d = Drone(connection=configuration['drone']['address'][network_interface][0]+str(port+configuration['drone']['address'][network_interface][1]), timeout=timeout)  # Load drone
                     has_connected = True
                     break
                 except ConnectionRefusedError:
@@ -57,7 +58,15 @@ def get_drone(timeout=1):
                     att += 1
             if has_connected:
                 dprint('get_drone', 1, 'Got connection to drone!')
-                return drone_obj
+                should = should_be_recording()
+                if should == -1:
+                    dprint('get_drone', 1, 'LOL I already got kicked')
+                    continue
+                if should:
+                    dprint('get_drone', 1, 'Yes, I can record!')
+                    return
+                else:
+                    dprint('get_drone', 1, 'I can\'t record :(')
         dprint('get_drone', 1, 'Sleeping for 30 seconds...')
         time.sleep(30)
 
@@ -68,7 +77,7 @@ def wait_for_record():
         should = should_be_recording()
         if should == -1:  # lost drone connection
             c.deactivate(delay=0)
-            d = get_drone(timeout=configuration['drone']['msg_timeout'])
+            get_drone(timeout=configuration['drone']['msg_timeout'])
             continue
         elif should:
             return
@@ -115,19 +124,20 @@ def should_be_recording():
 
 
 if __name__ == '__main__':
+    d = None
     coordinate_format, configuration = load_config()  # Load configuration
-    d = get_drone(timeout=configuration['drone']['msg_timeout'])
+    get_drone(timeout=configuration['drone']['msg_timeout'])
     c = Camera(configuration,
                lat_long_format=coordinate_format,
                camera_activate_radius=configuration['camera']['radius_activate'],
-               actually_move=False,
+               actually_move=True,
                log_level=configuration['debug'])  # Create camera
     current_deactivate_worker = None
     while True:
         s = should_be_recording()
         if s == -1:
             c.deactivate(configuration['camera']['delay'])
-            d = get_drone()
+            get_drone()
         if not s:
             dprint('main', 1, 'I should not be recording. Deactivating the camera...')
             if c.activated:
@@ -135,7 +145,7 @@ if __name__ == '__main__':
             else:
                 c.deactivate(delay=0)
             dprint('main', 1, 'Now waiting for recording...')
-            wait_for_record()
+            get_drone()
             if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
                 # We have reconnected before expiration
                 current_deactivate_worker.cancel()
@@ -149,8 +159,7 @@ if __name__ == '__main__':
             dprint('main', 1, "Lost drone connection!")
             current_deactivate_worker = c.deactivate(configuration['camera']['delay'])
             del d
-            d = get_drone()
-            wait_for_record()
+            get_drone()
             if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
                 # We have reconnected before expiration
                 current_deactivate_worker.cancel()
