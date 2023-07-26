@@ -21,12 +21,12 @@ class NullController:
         return
 
     def stop_recording(self, *args):
-        print("STOPPPED recoin")
+        print("[fake-stop] stopped recording.")
         self.fake_value += 1
         return True
 
     def start_recording(self, *args, profile=None):
-        print("STARTED RECORING")
+        print("[fake-start] started recording.")
         self.fake_value += 1
         return 'fake-recording-name', 0
 
@@ -154,6 +154,8 @@ class Camera:
         dist_xz = geodesic(camera_lat_long, drone_lat_long).meters
         dist_y = self.drone_loc[2] - self.alt
         heading_y = math.atan2(dist_y, dist_xz) / pi_c
+        if self.config['camera']['is_upside_down']:
+            heading_y *= -1
         return heading_xz, heading_y, dist_xz, dist_y
 
     def calculate_zoom(self):
@@ -165,7 +167,10 @@ class Camera:
         max_dimension = max([i for i in [self.config['drone']['x'],
                                          self.config['drone']['y'],
                                          self.config['drone']['z']]])
-        zoom = (dist * max_dimension) / (self.config['scale']['dist'] * self.config['scale']['width'])
+        zoom = (dist * self.config['scale']['width']) / (self.config['scale']['dist'] * max_dimension)
+
+        zoom = round(((zoom-1) / (self.config['camera']['maximum_zoom']-1)) * 9999)
+        zoom *= 1/self.config['camera']['zoom_error']
         return dist, zoom
 
     def move_camera(self, drone_loc):
@@ -190,7 +195,8 @@ class Camera:
                 if self.log:
                     print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
-                    (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step']:
+                    (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
+                    (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step']):
                 if self.log > 1:
                     print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
                 self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work

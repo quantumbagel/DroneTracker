@@ -21,7 +21,7 @@ class Drone:
         self.log_level = log_level
         self.timeout = timeout
         if debug is None:
-            self.vehicle = mavutil.mavlink_connection(connection)
+            self.vehicle = mavutil.mavlink_connection(connection, retries=1)  # be very impatient
             self.get_drone_position()
 
     def update_drone_position(self):

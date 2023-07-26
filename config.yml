@@ -1,30 +1,35 @@
 camera:
   alt: 400 # camera alt (meters)
-  lat: "35.75121" # can be decimal int, string, or degrees copied from Google Maps (format 35°45'31.2"N or 78°53'59.5"W)
-  long: "-78.90228"
-  radius_activate: 100 # an int/float containing the horizontal (top-down) meter radius for the camera to start recording and moving
+  lat: "35.751253" # can be decimal int, string, or degrees copied from Google Maps (format 35°45'31.2"N or 78°53'59.5"W)
+  long: "-78.902028"
+  radius_activate: 0 # an int/float containing the horizontal (top-down) meter radius for the camera to start recording and moving
   offset: 0  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
   deactivate_pos:  # This example will make the camera look straight down without panning it.
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
     tilt: -90 # the tilt to go to when the camera deactivates (0 is no tilt change)
   min_step: 4 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
+  min_zoom_step: 2000 # the minimum change in zoom to update the ptz in pan steps, which run from 0 to 9999 linearly
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
   activate_method: "file" # the method to activate the recording.
   # armed: when the drone arms/disarms
   # file: when the file 'record' starts with a 1 or 0, start/stop recording
   # relative-height: you must put "relative-height5" or a number. This number is the minimum relative height from the takeoff spot from which the drone will start/stop recording ("relative-height5" = 5 meters)
   delay: 10 # the delay after the activate_method detects a deactivation for the camera to stop recording.
+  maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
+  is_upside_down: false # whether the camera is mounted upside down
+  zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
 drone:
-  address: "tcp:localhost:5763"
+  address:
+    localhost: ["tcp:localhost:", 5761, 10] # name: [prefix, start port, number of ports to check]
   x: 3 # (in meters, relative to front of drone)
   y: 4
   z: 5
   msg_timeout: 1
 scale: # at 1x zoom
-  dist: 10 # at 10 meters away from the camera...
-  width: 10 # its viewing angle is 10 meters wide
+  dist: 0.7239 # at x meters away from the camera... (calculated for q8615-e)
+  width: 0.889 # its viewing angle is x meters wide
 login:
   ip: "192.168.0.90" # the ip of the camera
   username: "" # the username of the camera
   password: "" # the password of the camera
-debug: 1  # the log level. 0 is off. 1 is normal. 2 is all logs.
+debug: 2  # the log level. 0 is off. 1 is normal. 2 is all logs.

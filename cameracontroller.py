@@ -21,6 +21,9 @@ while True:
         rc = image_control.get_jpeg_request()
         if rc == 'image saved':
             print("Succesful!")
+    if keyboard.is_pressed('q'):
+        print("WIPERING")
+
     if not cooldown:
         if keyboard.is_pressed('v'):
             if not is_recording:

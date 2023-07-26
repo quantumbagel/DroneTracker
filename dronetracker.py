@@ -35,7 +35,7 @@ def load_config():
     return coord_format, config
 
 
-def get_drone(connection_address='tcp:localhost:5762', timeout=1):
+def get_drone(timeout=1):
     """
     Wait for the drone to come alive and connect to it.
     :return: the Drone
@@ -43,14 +43,23 @@ def get_drone(connection_address='tcp:localhost:5762', timeout=1):
     att = 1
     dprint('get_drone', 1, 'Waiting for drone...')
     while True:
-        try:
-            drone_obj = Drone(connection=connection_address, timeout=timeout)  # Load drone
-            break
-        except ConnectionRefusedError:
-            dprint("get_drone", 1, "Failed on attempt " + str(att))
-            att += 1
-    dprint('get_drone', 1, 'Got connection to drone!')
-    return drone_obj
+        for network_interface in configuration['drone']['address'].keys():
+            dprint("get_drone", 1, "Attempting to connect to interface", network_interface)
+            has_connected = False
+            for port in range(configuration['drone']['address'][network_interface][2]):
+                dprint("get_drone", 1, "- connecting to port", port+configuration['drone']['address'][network_interface][1])
+                try:
+                    drone_obj = Drone(connection=configuration['drone']['address'][network_interface][0]+str(port+configuration['drone']['address'][network_interface][1]), timeout=timeout)  # Load drone
+                    has_connected = True
+                    break
+                except ConnectionRefusedError:
+                    dprint("get_drone", 1, "Failed on attempt " + str(att))
+                    att += 1
+            if has_connected:
+                dprint('get_drone', 1, 'Got connection to drone!')
+                return drone_obj
+        dprint('get_drone', 1, 'Sleeping for 30 seconds...')
+        time.sleep(30)
 
 
 def wait_for_record():
@@ -59,8 +68,7 @@ def wait_for_record():
         should = should_be_recording()
         if should == -1:  # lost drone connection
             c.deactivate(delay=0)
-            d = get_drone(connection_address=configuration['drone']['address'],
-                          timeout=configuration['drone']['msg_timeout'])
+            d = get_drone(timeout=configuration['drone']['msg_timeout'])
             continue
         elif should:
             return
@@ -108,11 +116,11 @@ def should_be_recording():
 
 if __name__ == '__main__':
     coordinate_format, configuration = load_config()  # Load configuration
-    d = get_drone(connection_address=configuration['drone']['address'], timeout=configuration['drone']['msg_timeout'])
+    d = get_drone(timeout=configuration['drone']['msg_timeout'])
     c = Camera(configuration,
                lat_long_format=coordinate_format,
                camera_activate_radius=configuration['camera']['radius_activate'],
-               actually_move=True,
+               actually_move=False,
                log_level=configuration['debug'])  # Create camera
     current_deactivate_worker = None
     while True:
@@ -128,7 +136,8 @@ if __name__ == '__main__':
                 c.deactivate(delay=0)
             dprint('main', 1, 'Now waiting for recording...')
             wait_for_record()
-            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():  # We have reconnected before expiration
+            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
+                # We have reconnected before expiration
                 current_deactivate_worker.cancel()
                 current_deactivate_worker = None
                 dprint('main', 1, 'Detected alive deactivate worker! Continuing to record!')
@@ -142,7 +151,8 @@ if __name__ == '__main__':
             del d
             d = get_drone()
             wait_for_record()
-            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():  # We have reconnected before expiration
+            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
+                # We have reconnected before expiration
                 current_deactivate_worker.cancel()
                 current_deactivate_worker = None
                 dprint('main', 1, 'Detected alive deactivate worker! Continuing to record!')
