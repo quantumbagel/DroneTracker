@@ -9,6 +9,7 @@ This program controls AXIS cameras supporting VAPIX to track MavLink/ArduPilot d
 ### Configuration Options
 
 |Configuration Option|Description|
+|-|-|
 |camera/alt|The altitude (from sea level) for the camera's lens.|
 |camera/lat, camera/long| The latitude and longitude of the camera's lens.|
 |camera/radius_activate)|The maximum radius that the drone can be for the camera to be active|
