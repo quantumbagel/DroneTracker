@@ -4,7 +4,15 @@ A drone-following script for NC State's AERPAW drones
 **Disclaimer: This guide is written for Linux users. This program should work great on all operating systems, just adapt as necessary.**
 
 ### What does this do?
-This program controls AXIS cameras supporting VAPIX to track MavLink/ArduPilot drones and record video of them.
+This program controls AXIS cameras supporting VAPIX to track MavLink/ArduPilot drones and record video of the drones.
+
+Its features include
+* Customizable recording triggers
+* Can zoom to fit drone in view or with a certain amount of space around it
+* Can handle drone software crashes or disconnects and quickly recover
+* Can support as many drones as you need via config
+* Works with any AXIS PTZ camera supporting VAPIX or any ArduPilot/MavLink based drone
+and many more!
 
 ### Configuration Options
 
@@ -12,7 +20,7 @@ This program controls AXIS cameras supporting VAPIX to track MavLink/ArduPilot d
 |-|-|
 |camera/alt|The altitude (from sea level) for the camera's lens.|
 |camera/lat, camera/long| The latitude and longitude of the camera's lens.|
-|camera/radius_activate)|The maximum radius that the drone can be for the camera to be active|
+|camera/radius_activate|The maximum radius that the drone can be for the camera to be active|
 |camera/offset| The camera's offset from north (clockwise)|
 |camera/deactivate_pos/pan, camera/deactivate_pos/tilt|The pan/tilt to deactivate the camera to when it is not in use.|
 |camera/min_step|The minimum change in the pan/tilt (degrees) from the camera's current position for the program to send an update|
