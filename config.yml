@@ -10,26 +10,20 @@ camera:
   min_step: 4 # the minimum distance from the (pan or tilt) to update the camera's ptz. For example, a value of 1 would move the camera any time the pan or tilt differed by at least 1 degree.
   min_zoom_step: 2000 # the minimum change in zoom to update the ptz in pan steps, which run from 0 to 9999 linearly
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
-  activate_method: "file" # the method to activate the recording.
-  # armed: when the drone arms/disarms
-  # file: when the file 'record' starts with a 1 or 0, start/stop recording
-  # relative-height: you must put "relative-height5" or a number. This number is the minimum relative height from the takeoff spot from which the drone will start/stop recording ("relative-height5" = 5 meters)
   delay: 10 # the delay after the activate_method detects a deactivation for the camera to stop recording.
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
   is_upside_down: false # whether the camera is mounted upside down
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
 drone:
-  address:
-    localhost: ["tcp:localhost:", 5761, 10] # name: [prefix, start port, number of ports to check]
-  x: 3 # (in meters, relative to front of drone)
+  x: 3 # size (in meters, relative to front of drone)
   y: 4
   z: 5
-  msg_timeout: 1
 scale: # at 1x zoom
   dist: 0.7239 # at x meters away from the camera... (calculated for q8615-e)
   width: 0.889 # its viewing angle is x meters wide
-login:
+camera_login:
   ip: "192.168.0.90" # the ip of the camera
   username: "" # the username of the camera
   password: "" # the password of the camera
-debug: 2  # the log level. 0 is off. 1 is normal. 2 is all logs.
+
+logs: "debug" # "debug", "info", or "error"

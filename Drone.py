@@ -1,71 +1,48 @@
+import logging
 import time
-from pymavlink import mavutil
+from datetime import datetime
 
+from pymavlink import mavutil
+import kafka
+import json
 
 class Drone:
     """
     A class to represent the drone and handle the connection and location of it
     """
 
-    def __init__(self, debug=None, log_level=1, connection='tcp:localhost:5762', timeout=1):
+    def __init__(self, connection="localhost:9092", topic="dronetracker-data", timeout=1):
         """
         Initialize and connect to the drone.
-        :param debug: a function to replace the drone for testing. Can be None to turn this off
-        :param connection: where to connect
+        :param connection: where to connect to the Kafka server
         """
-        self.debug_pos_function = debug
         self.start_time = time.time()
-        self.lat = None
-        self.long = None
-        self.alt = None
-        self.log_level = log_level
+        self.lat = self.long = self.alt = self.vx = self.vy = self.vz = None
         self.timeout = timeout
-        if debug is None:
-            self.vehicle = mavutil.mavlink_connection(connection, retries=1)  # be very impatient
-            self.get_drone_position()
+        self.consumer = kafka.KafkaConsumer(bootstrap_servers=[connection])
+        self.consumer.subscribe([topic])
+        self.topic = topic
+        self.get_drone_position()
+        self.log = logging.getLogger('Drone')
+        self.most_recent = 0
 
     def update_drone_position(self):
         """
         Get the position of the drone and save it to the class
         :return: nothing
         """
-        if self.debug_pos_function is None:
-            self.vehicle.mav.request_data_stream_send(self.vehicle.target_system, self.vehicle.target_component,
-                                                      mavutil.mavlink.MAV_DATA_STREAM_ALL, 120, 1)  # Update the data
-            try:
-                # Get the position message
-                msg = self.vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=self.timeout)
-                if msg is None:
-                    print('[Drone] GLOBAL_POSITION request timed out! Drone is disconnected!')
-                    return 1
-            except ConnectionResetError:
-                return 1
-            self.lat = msg.lat * 10 ** -7
-            self.long = msg.lon * 10 ** -7
-            self.alt = msg.alt * 10 ** -3
-        else:
-            self.lat, self.long, self.alt = self.debug_pos_function()  # Call the debug function
-        return 0
-
-    def recv_message(self, msg_type):
+        msg = self.consumer.poll(timeout_ms=1000)[kafka.TopicPartition(self.topic, 0)][-1]
+        t = (datetime.utcfromtimestamp(msg.timestamp // 1000)
+             .replace(microsecond=msg.timestamp % 1000 * 1000).timestamp())
+        self.most_recent = t  # This is a new most recent
+        value = json.loads(msg.value)
         try:
-            msg = self.vehicle.wait_heartbeat(timeout=self.timeout)
-            if msg is None:
-                print('[Drone] HEARTBEAT request timed out! Drone is disconnected!')
-                return None
-        except ConnectionResetError:
-            print('[Drone] HEARTBEAT request timed out! Drone is disconnected!')
-
-        try:
-            msg = self.vehicle.recv_match(type=msg_type, blocking=True,
-                                          timeout=self.timeout)  # Get the position message
-            if msg is None:
-                print('[Drone] '+msg_type+' request timed out! Drone is disconnected!')
-                return None
-        except ConnectionResetError:
-            print('[Drone] ' + msg_type + ' request timed out! Drone is disconnected!')
-            return None
-        return msg
+            self.lat = value["position"]["latitude"]
+            self.long = value["position"]["longitude"]
+            self.alt = value["position"]["altitude"]
+        except KeyError:
+            self.log.error(f"Position data not present!\nData: {value}")
+        print(value)
 
     def get_drone_position(self):
         """
@@ -74,29 +51,10 @@ class Drone:
         """
         exit_code = self.update_drone_position()
         if exit_code:
-            return -1, 0, 0
-        return self.lat, self.long, self.alt
+            return -1
+        return self.lat, self.long, self.alt, self.vx, self.vy, self.vz
 
-    def wait_for_armed(self):
-        """
-        A function to wait for the drone to arm
-        :return: 1 if drone disconnects, 0 if successful
-        """
-        run = 1
-        while True:
-            m = self.vehicle.wait_heartbeat(timeout=self.timeout)
-            if self.log_level:
-                print("[Drone.wait_for_armed] waiting for the drone to arm... on cycle", run)
-            if m is None:
-                return 1
-            if self.vehicle.motors_armed():
-                break
-            run += 1
-        return 0
 
-    def is_armed(self):
-        """
-        A function to check if the drone is currently armed
-        :return: none
-        """
-        return self.vehicle.motors_armed()
+d = Drone(topic="my-topic")
+while True:
+    d.get_drone_position()

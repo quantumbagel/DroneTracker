@@ -112,28 +112,6 @@ class Camera:
             print("[Camera.update]", 'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)',
                   self.heading_xz, self.heading_y, self.dist_xz, self.dist_y, self.dist, self.zoom)
 
-    def calculate_heading_directions_deprecated(self):
-        """
-        Calculate the heading directions for the camera.
-        :return: The heading directions required and the distances vertically and horizontally from the drone
-        """
-        drone_lat_long = self.drone_loc[:2]
-        dist_xz = geodesic(drone_lat_long, [self.lat, self.long]).meters
-        # ^ Distance as the crow flies between us and the drone. Uses oblate spheroid for Earth
-        dist_y = self.drone_loc[2] - self.alt
-        # ^ Difference in altitude
-        long_dist = drone_lat_long[1] - self.long
-        # ^ The distance in longitude (used for heading_xz)
-        # v Some math to determine heading_xz and heading_y
-        # (https://www.igismap.com/formula-to-find-bearing-or-heading-angle-between-two-points-latitude-longitude/)
-        heading_xz = math.atan2(math.cos(drone_lat_long[0]) * math.sin(long_dist),
-                                math.cos(self.lat) * math.sin(drone_lat_long[0]) - math.sin(
-                                    self.lat) * math.cos(drone_lat_long[0]) * math.cos(long_dist))
-        # v calculate the heading_y
-        heading_y = math.atan2(dist_y, dist_xz)
-
-        return heading_xz, heading_y, dist_xz, dist_y
-
     def calculate_heading_directions(self, drone_lat_long):
         """
         A function to calculate heading.
