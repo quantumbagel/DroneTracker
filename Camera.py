@@ -177,7 +177,7 @@ class Camera:
                     (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step']):
                 if self.log > 1:
                     print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
-                self.controller.absolute_move(self.heading_xz, self.heading_y, self.zoom)  # this should work
+                self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'], self.heading_y, self.zoom)  # this should work
                 self.current_pan = self.heading_xz
                 self.current_tilt = self.heading_y
                 self.current_zoom = self.zoom
