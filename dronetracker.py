@@ -5,7 +5,8 @@ from Drone import Drone
 from Camera import Camera
 import logging
 
-
+logging.basicConfig(level=logging.INFO)
+configuration = YAML().load(open("config.yml"))
 
 
 def print_information(camera):
@@ -36,15 +37,21 @@ def load_config():
     return coord_format, config
 
 
-def get_drone(timeout=1):
+def get_drone():
     """
-    Wait for the drone to come alive and connect to it.
+    Wait for the drone to come alive and connect to it. Assumes we are active
     :return: the Drone
     """
-    global d
     log = logging.getLogger('get_drone')
     log.info('Waiting for drone...')
-    d = Drone(connection=config[""])
+    while True:
+        drone = Drone(connection=configuration["kafka"]["ip"])
+        if drone.consumer is None:  # Drone consumer failed connection, so we will try again
+            log.info("Failed to connect to Kafka server! Trying again in 1 second...")
+            time.sleep(1)
+            continue
+        break
+    return drone
 
 
 
@@ -102,55 +109,75 @@ def should_be_recording():
         return False
 
 
-if __name__ == '__main__':
-    d = None
-    coordinate_format, configuration = load_config()  # Load configuration
-    get_drone(timeout=configuration['drone']['msg_timeout'])
-    c = Camera(configuration,
-               lat_long_format=coordinate_format,
-               camera_activate_radius=configuration['camera_login']['radius_activate'],
-               actually_move=True,
-               log_level=configuration['logs'])  # Create camera
-    current_deactivate_worker = None
-    log = logging.getLogger('main')
-    while True:
-        # s = should_be_recording()
-        # if s == -1:
-        #     c.deactivate(configuration['camera_login']['delay'])
-        #     get_drone()
-        # if not s:
-        #     log.info('I should not be recording. Deactivating the camera...')
-        #     if c.activated:
-        #         current_deactivate_worker = c.deactivate(configuration['camera_login']['delay'])
-        #     else:
-        #         c.deactivate(delay=0)
-        #     log.info('Now waiting for recording...')
-        #     get_drone()
-        #     if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
-        #         # We have reconnected before expiration
-        #         current_deactivate_worker.cancel()
-        #         current_deactivate_worker = None
-        #         log.info('Detected alive deactivate worker! Continuing to record!')
-        #     else:
-        #         current_deactivate_worker = None
-        #     log.info('done')
-        pos = d.get_drone_position()
+# if __name__ == '__main__':
+#     d = None
+#     coordinate_format, configuration = load_config()  # Load configuration
+#     get_drone(timeout=configuration['drone']['msg_timeout'])
+#     c = Camera(configuration,
+#                lat_long_format=coordinate_format,
+#                camera_activate_radius=configuration['camera']['radius_activate'],
+#                actually_move=True,
+#                log_level=configuration['logs'])  # Create camera
+#     current_deactivate_worker = None
+#     log = logging.getLogger('main')
+#     while True:
+#         # s = should_be_recording()
+#         # if s == -1:
+#         #     c.deactivate(configuration['camera_login']['delay'])
+#         #     get_drone()
+#         # if not s:
+#         #     log.info('I should not be recording. Deactivating the camera...')
+#         #     if c.activated:
+#         #         current_deactivate_worker = c.deactivate(configuration['camera_login']['delay'])
+#         #     else:
+#         #         c.deactivate(delay=0)
+#         #     log.info('Now waiting for recording...')
+#         #     get_drone()
+#         #     if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
+#         #         # We have reconnected before expiration
+#         #         current_deactivate_worker.cancel()
+#         #         current_deactivate_worker = None
+#         #         log.info('Detected alive deactivate worker! Continuing to record!')
+#         #     else:
+#         #         current_deactivate_worker = None
+#         #     log.info('done')
+#         pos = d.get_drone_position()
+#
+#         if pos == -1:
+#             log.info("Lost drone connection!")
+#             current_deactivate_worker = c.deactivate(configuration['camera']['delay'])
+#             del d
+#             get_drone()
+#             if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
+#                 # We have reconnected before expiration
+#                 current_deactivate_worker.cancel()
+#                 current_deactivate_worker = None
+#                 log.info('Detected alive deactivate worker! Continuing to record!')
+#             else:
+#                 current_deactivate_worker = None
+#             continue
+#         else:
+#             c.move_camera(pos)
+#         print_information(c)
+#         if configuration['camera']['wait']:
+#             time.sleep(configuration['camera']['wait'])
 
-        if pos == -1:
-            log.info("Lost drone connection!")
-            current_deactivate_worker = c.deactivate(configuration['camera_login']['delay'])
-            del d
-            get_drone()
-            if current_deactivate_worker is not None and current_deactivate_worker.is_alive():
-                # We have reconnected before expiration
-                current_deactivate_worker.cancel()
-                current_deactivate_worker = None
-                log.info('Detected alive deactivate worker! Continuing to record!')
-            else:
-                current_deactivate_worker = None
-            continue
-        else:
-            c.move_camera(pos)
-        print_information(c)
-        if configuration['camera_login']['wait']:
-            time.sleep(configuration['camera_login']['wait'])
+
+
+active = False
+if __name__ == '__main__':
+    drone = get_drone()
+
+    c = Camera(configuration,
+                   lat_long_format="decimal",
+                   camera_activate_radius=configuration['camera']['radius_activate'],
+                   actually_move=False,
+                   log_level=2)  # Create camera
+    while True:
+        position_data = drone.get_drone_position()
+        if position_data[0] is not None:
+            c.move_camera(position_data[0:3])
+        print(position_data)
+
+
+

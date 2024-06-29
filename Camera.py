@@ -71,7 +71,6 @@ class Camera:
         self.move = actually_move
         self.disk_name = disk_name
         self.profile_name = profile_name
-        self.record_method = self.config['camera']['activate_method']
         if self.move:
             self.controller = vapix_control.CameraControl(config['login']['ip'],
                                                           config['login']['username'],

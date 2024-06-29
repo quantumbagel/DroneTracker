@@ -25,5 +25,7 @@ camera_login:
   ip: "192.168.0.90" # the ip of the camera
   username: "" # the username of the camera
   password: "" # the password of the camera
-
+kafka:
+  ip: "localhost:9092"
+  data_topic: "dronetracker-data"
 logs: "debug" # "debug", "info", or "error"
