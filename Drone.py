@@ -3,9 +3,10 @@ import time
 from datetime import datetime
 
 from kafka.errors import NoBrokersAvailable
-from pymavlink import mavutil
 import kafka
 import json
+
+
 
 class Drone:
     """
@@ -47,7 +48,7 @@ class Drone:
             self.log.debug("Successfully received message from Kafka server")
             msg = msg[kafka.TopicPartition(self.topic, 0)][-1]
         else:
-            self.log.info("No new data!")
+            self.log.debug("No new data!")
             return
         t = (datetime.utcfromtimestamp(msg.timestamp // 1000)
              .replace(microsecond=msg.timestamp % 1000 * 1000).timestamp())

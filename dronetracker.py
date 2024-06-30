@@ -5,7 +5,7 @@ from Drone import Drone
 from Camera import Camera
 import logging
 
-logging.basicConfig(level=logging.INFO)
+
 configuration = YAML().load(open("config.yml"))
 
 
@@ -166,18 +166,21 @@ def should_be_recording():
 
 active = False
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+
+    log = logging.getLogger('Drone')
+    log.warning("oh yeah")
     drone = get_drone()
 
     c = Camera(configuration,
                    lat_long_format="decimal",
                    camera_activate_radius=configuration['camera']['radius_activate'],
-                   actually_move=False,
-                   log_level=2)  # Create camera
+                   actually_move=False)  # Create camera
     while True:
         position_data = drone.get_drone_position()
         if position_data[0] is not None:
             c.move_camera(position_data[0:3])
-        print(position_data)
+        #print(position_data)
 
 
 

@@ -1,8 +1,11 @@
+import logging
 import math
 import threading
 import time
 
 from geopy.distance import geodesic
+
+logging.basicConfig(level=logging.INFO)
 from sensecam_control import vapix_control, vapix_config
 
 
@@ -13,6 +16,7 @@ class NullController:
 
     def __init__(self):
         self.fake_value = 0
+        self.log = logging.getLogger("NullController")
         return
 
     def absolute_move(self, *args):
@@ -21,14 +25,16 @@ class NullController:
         return
 
     def stop_recording(self, *args):
-        print("[fake-stop] stopped recording.")
+        log = self.log.getChild("fake-stop")
+        log.info("stopped recording.")
         self.fake_value += 1
         return True
 
     def start_recording(self, *args, profile=None):
-        print("[fake-start] started recording.")
+        log = self.log.getChild("fake-start")
+        log.info("stopped recording.")
         self.fake_value += 1
-        return 'fake-recording-name', 0
+        return f'fake-recording-name{self.fake_value}', 0
 
 
 class Camera:
@@ -41,7 +47,6 @@ class Camera:
                  config: dict,
                  lat_long_format='degrees',
                  camera_activate_radius=0,
-                 log_level=1,  # 1 is normal, 0 is off, 2 is MAX
                  actually_move=True,
                  disk_name='SD_DISK',
                  profile_name=None):
@@ -63,6 +68,7 @@ class Camera:
         self.dist_xz = -1
         self.dist_y = -1
         self.dist = -1
+        self.log = logging.getLogger('Camera')
         self.heading_xz = -1
         self.heading_y = -1
         self.zoom = -1
@@ -82,7 +88,6 @@ class Camera:
             self.controller = NullController()
             self.media = NullController()
         self.activated = False
-        self.log = log_level
         self.current_pan = 0
         self.current_tilt = 0
         self.current_zoom = 0
@@ -104,12 +109,12 @@ class Camera:
         Calculate the zoom and heading directions via Camera.calculate_heading_directions and Camera.calculate_zoom
         :return: none
         """
+        log = self.log.getChild("update")
         self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions(
             self.drone_loc[:2])
         self.dist, self.zoom = self.calculate_zoom()
-        if self.log > 1:
-            print("[Camera.update]", 'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)',
-                  self.heading_xz, self.heading_y, self.dist_xz, self.dist_y, self.dist, self.zoom)
+        log.debug(f'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)'
+                  f' {self.heading_xz}, {self.heading_y}, {self.dist_xz}, {self.dist_y}, {self.dist}, {self.zoom}')
 
     def calculate_heading_directions(self, drone_lat_long):
         """
@@ -155,6 +160,7 @@ class Camera:
         A function to send the command to pan, tilt, and zoom to the camera over whatever protocol we end up using
         :return: none
         """
+        log = self.log.getChild("move_camera")
         self.drone_loc = drone_loc
         self.update()
         if abs(self.dist_xz) < self.camera_activate_radius or self.camera_activate_radius == 0:  # am I in the radius?
@@ -162,37 +168,33 @@ class Camera:
                 while True:
                     rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
                     if out == 1:
-                        if self.log:
-                            print("[Camera.move_camera]", 'failed to start recording!', 'error: ', rc_name)
+                        log.error(f'failed to start recording! error: {rc_name}')
                         continue
                     self.current_recording_name = rc_name
                     break
 
                 self.activated = True
-                if self.log:
-                    print("[Camera.move_camera]", "Successfully started recording!", 'id:', self.current_recording_name)
+                log.info(f"Successfully started recording! id: {self.current_recording_name}")
             if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
                     (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step']):
-                if self.log > 1:
-                    print("[Camera.move_camera]", 'moving to (p, t, z)', self.heading_xz, self.heading_y, self.zoom)
-                self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'], self.heading_y, self.zoom)  # this should work
+                log.info(f'moving to (p, t, z) {self.heading_xz + self.config["camera"]["offset"]},'
+                         f' {self.heading_y}, {self.zoom}')
+                self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'],
+                                              self.heading_y, self.zoom)  # this should work
                 self.current_pan = self.heading_xz
                 self.current_tilt = self.heading_y
                 self.current_zoom = self.zoom
             else:
-                if self.log > 1:
-                    print("[Camera.move_camera]", 'Step is not significant enough to move the camera.')
-
-            # TODO: test the controller and determine the offset
+                log.debug('Step is not significant enough to move the camera. ')
         else:
             if self.activated:
                 self.deactivate()
             self.activated = False
 
     def deactivate(self, delay=0):
-        if self.log:
-            print("[Camera.deactivate] now starting wait for", delay, 'seconds')
+        log = self.log.getChild("deactivate")
+        log.info("now starting wait for", delay, 'seconds')
         if delay:
             self.deactivating = True
             worker = threading.Timer(delay,  self._deactivate_function)
@@ -206,18 +208,17 @@ class Camera:
         Force deactivate the camera.
         :return: none
         """
+        log = self.log.getChild("deactivate")
         if self.current_recording_name != '':
             while True:
-                if self.log:
-                    print("[Camera.deactivate]", 'stopping the recording... (name='+self.current_recording_name+')')
+                log.info('stopping the recording... (name='+self.current_recording_name+')')
                 stopped = self.media.stop_recording(self.current_recording_name)
                 if stopped:
-                    if self.log:
-                        print("[Camera.deactivate]", 'Success!')
+                    log.info('Success stopping recording!')
                     break
                 else:
                     if self.log:
-                        print("[Camera.deactivate]", 'failed! retrying...')
+                        log.info('failed to stop recording! retrying...')
             self.current_recording_name = ''
         deactivate_pan = self.config['camera']['deactivate_pos']['pan']
         deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
@@ -226,7 +227,7 @@ class Camera:
         if not deactivate_tilt:
             deactivate_tilt = self.current_tilt
         if self.log:
-            print("[Camera.deactivate]", 'deactivating to (p, t)', deactivate_pan, deactivate_tilt)
+            log.info(f'deactivating to (p, t) {deactivate_pan}, {deactivate_tilt}')
         self.controller.absolute_move(deactivate_pan,
                                       deactivate_tilt)
         self.current_pan = deactivate_pan
