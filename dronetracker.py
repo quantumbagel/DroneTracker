@@ -174,7 +174,6 @@ if __name__ == '__main__':
 
     c = Camera(configuration,
                    lat_long_format="decimal",
-                   camera_activate_radius=configuration['camera']['radius_activate'],
                    actually_move=False)  # Create camera
     while True:
         position_data = drone.get_drone_position()
