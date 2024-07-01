@@ -107,21 +107,33 @@ class Camera:
         :param drone_lat_long: The drone position (lat/long)
         :return: The heading
         """
-        pi_c = math.pi / 180
+        pi_c = math.pi / 180  # The radians -> degrees conversion factor
+
         camera_lat_long = [self.lat, self.long]
+
+        # Convert coordinates to arc lengths
         first_lat = camera_lat_long[0] * pi_c
         first_lon = camera_lat_long[1] * pi_c
         second_lat = drone_lat_long[0] * pi_c
         second_lon = drone_lat_long[1] * pi_c
+
+        # Calculate y and x differential
         y = math.sin(second_lon - first_lon) * math.cos(second_lat)
         x = (math.cos(first_lat) * math.sin(second_lat)) - (
                 math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
+
+        # Calculate pan
         heading_rads = math.atan2(y, x)
         heading_xz = ((heading_rads / pi_c) + 360) % 360
+
+        # Calculate x/y way distances
         dist_xz = geodesic(camera_lat_long, drone_lat_long).meters
         dist_y = self.drone_loc[2] - self.alt
+
+        # Calculate tilt
         heading_y = math.atan2(dist_y, dist_xz) / pi_c
-        if self.config['camera']['is_upside_down']:
+
+        if self.config['camera']['is_upside_down']:  # If camera is upside down, invert tilt
             heading_y *= -1
         return heading_xz, heading_y, dist_xz, dist_y
 
