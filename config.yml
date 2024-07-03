@@ -13,6 +13,7 @@ camera:
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
   is_upside_down: false # whether the camera is mounted upside down
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
+  lead: 0 # The number of seconds to lead the drone by
 drone:
   x: 3 # size (in meters, relative to front of drone)
   y: 4
@@ -27,5 +28,6 @@ camera_login:
 kafka:
   ip: "localhost:9092"
   data_topic: "dronetracker-data"
+  command_topic: "dronetracker-command"
   hz: 10
 logs: "debug" # "debug", "info", or "error"

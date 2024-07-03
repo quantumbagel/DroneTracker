@@ -1,9 +1,8 @@
-pymavlink
 numpy==1.25.1
 scipy==1.11.1
 geopy~=2.3.0
 ruamel.yaml
 pyserial~=3.5
 sensecam-control @ git+https://github.com/quantumbagel/sensecam-control-record@master
-keyboard
 xmltodict
+kafka-python

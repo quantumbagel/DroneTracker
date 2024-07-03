@@ -37,18 +37,18 @@ class Drone:
             return False
         self.consumer.subscribe([self.topic])
 
-    def update_drone_position(self):
+    def update(self):
         """
         Get the position of the drone and save it to the class
         :return: nothing
         """
-
+        log = self.log.getChild("update")
         msg = self.consumer.poll()
         if len(msg):  # is there new data?
-            self.log.debug("Successfully received message from Kafka server")
+            log.debug("Successfully received message from Kafka server")
             msg = msg[kafka.TopicPartition(self.topic, 0)][-1]  # We need to get the most recent message, thus the -1
         else:
-            self.log.debug("No new data!")  # We don't need to do anything, just return.
+            log.debug("No new data!")  # We don't need to do anything, just return.
             # The most recent data is already saved
             return
         t = (datetime.utcfromtimestamp(msg.timestamp // 1000)
@@ -66,4 +66,10 @@ class Drone:
         except KeyError:
             # We got a KeyError - the data isn't valid!
             self.log.error(f"Position data not present!\nData: {value}")
+
+    def reset(self):
+        """
+        Reset the drone's data so it isn't used in future experiments
+        """
+        self.lat = self.long = self.alt = self.vx = self.vy = self.vz = None
 
