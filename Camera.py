@@ -156,8 +156,9 @@ class Camera:
         lead_time = self.config['camera']['lead']
 
         # Lead the camera (calculate new relative x, y, and z)
+        # We do north/east/up, I guess DroneKit does north/east/down? This can be changed easily
         x += lead_time * vx
-        y += lead_time * vy
+        y += lead_time * - vy
         z += lead_time * vz
 
         # Calculate new heading/distances based on new relative x, y, and z
