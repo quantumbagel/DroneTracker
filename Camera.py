@@ -2,7 +2,8 @@ import logging
 import math
 import threading
 from geopy.distance import geodesic
-logging.basicConfig(level=logging.INFO)  # This line prevents sensecam_control from stealing the root logger
+
+logging.basicConfig(level=logging.DEBUG)  # This line prevents sensecam_control from stealing the root logger
 from sensecam_control import vapix_control, vapix_config
 
 
@@ -29,7 +30,7 @@ class NullController:
 
     def start_recording(self, *args, profile=None):
         log = self.log.getChild("fake-start")
-        log.info("stopped recording.")
+        log.info("started recording.")
         self.fake_value += 1
         return f'fake-recording-name{self.fake_value}', 0
 
@@ -95,27 +96,34 @@ class Camera:
         :return: none
         """
         log = self.log.getChild("update")
-        self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions(
-            self.drone_loc[:2])
+        self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions()
         self.dist, self.zoom = self.calculate_zoom()
         log.debug(f'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)'
                   f' {self.heading_xz}, {self.heading_y}, {self.dist_xz}, {self.dist_y}, {self.dist}, {self.zoom}')
 
-    def calculate_heading_directions(self, drone_lat_long):
+    def calculate_heading_directions(self):
         """
-        A function to calculate heading.
-        :param drone_lat_long: The drone position (lat/long)
+        A function to calculate the heading and distances, while also leading the camera.
         :return: The heading
         """
+        log = self.log.getChild("calculate_heading")
         pi_c = math.pi / 180  # The radians -> degrees conversion factor
 
         camera_lat_long = [self.lat, self.long]
 
+        # Unpack drone_loc
+        lat = self.drone_loc[0]
+        long = self.drone_loc[1]
+        alt = self.drone_loc[2]
+        vx = self.drone_loc[3]
+        vy = self.drone_loc[4]
+        vz = self.drone_loc[5]
+
         # Convert coordinates to arc lengths
         first_lat = camera_lat_long[0] * pi_c
         first_lon = camera_lat_long[1] * pi_c
-        second_lat = drone_lat_long[0] * pi_c
-        second_lon = drone_lat_long[1] * pi_c
+        second_lat = lat * pi_c
+        second_lon = long * pi_c
 
         # Calculate y and x differential
         y = math.sin(second_lon - first_lon) * math.cos(second_lat)
@@ -123,19 +131,50 @@ class Camera:
                 math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
 
         # Calculate pan
-        heading_rads = math.atan2(y, x)
-        heading_xz = ((heading_rads / pi_c) + 360) % 360
+        pre_led_heading_xz = math.atan2(y, x)
 
         # Calculate x/y way distances
-        dist_xz = geodesic(camera_lat_long, drone_lat_long).meters
-        dist_y = self.drone_loc[2] - self.alt
+        pre_led_dist_xz = geodesic(camera_lat_long, [lat, long]).meters
+        pre_led_dist_y = alt - self.alt
 
         # Calculate tilt
-        heading_y = math.atan2(dist_y, dist_xz) / pi_c
+        pre_led_heading_y = math.atan2(pre_led_dist_y, pre_led_dist_xz)
 
-        if self.config['camera']['is_upside_down']:  # If camera is upside down, invert tilt
-            heading_y *= -1
-        return heading_xz, heading_y, dist_xz, dist_y
+        # Calculate x, y, and z vectors
+        x = math.sin(pre_led_heading_xz) * pre_led_dist_xz
+        y = pre_led_dist_y
+        z = math.cos(pre_led_heading_xz) * pre_led_dist_xz
+
+        log.debug(f"Initially calculated data: "
+                 f"heading_xz {pre_led_heading_xz / pi_c} "
+                 f"heading_y {pre_led_heading_y / pi_c} "
+                 f"dist_xz {pre_led_dist_xz} "
+                 f"dist_x {x} "
+                 f"dist_y {y} "
+                 f"dist_z {z}")
+
+        lead_time = self.config['camera']['lead']
+
+        # Lead the camera (calculate new relative x, y, and z)
+        x += lead_time * vx
+        y += lead_time * vy
+        z += lead_time * vz
+
+        # Calculate new heading/distances based on new relative x, y, and z
+        heading_xz = math.acos(z / math.sqrt(x ** 2 + z ** 2))
+        dist_xz = math.sqrt(x ** 2 + z ** 2)
+        heading_y = math.asin(y / math.sqrt(x ** 2 + y ** 2 + z ** 2))
+        dist_y = y
+
+        log.debug(f"Data after camera lead of {lead_time}s: "
+                 f"heading_xz {heading_xz / pi_c} "
+                 f"heading_y {heading_y / pi_c} "
+                 f"dist_xz {dist_xz} "
+                 f"dist_x {x} "
+                 f"dist_y {y} "
+                 f"dist_z {z}")
+
+        return heading_xz / pi_c, heading_y / pi_c, dist_xz, dist_y
 
     def calculate_zoom(self):
         """
@@ -148,7 +187,8 @@ class Camera:
                                          self.config['drone']['y'],
                                          self.config['drone']['z']]])
         zoom = (dist * self.config['scale']['width']) / (self.config['scale']['dist'] * max_dimension)  # Zoom is linear
-        zoom *= 1/self.config['camera']['zoom_error']  # Account for the "fudge factor"
+        zoom = round(((zoom - 1) / (self.config['camera']['maximum_zoom'] - 1)) * 9999)  # API takes "steps" from 0-9999
+        zoom *= 1 / self.config['camera']['zoom_error']  # Account for the "fudge factor"
         return dist, zoom
 
     def move_camera(self, drone_loc):
@@ -183,7 +223,7 @@ class Camera:
 
                 # Actually tell the camera to move
                 self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'],
-                                              self.heading_y, self.zoom)  # this should work
+                                              self.heading_y, self.zoom)
                 # Update internal class data
                 self.current_pan = self.heading_xz
                 self.current_tilt = self.heading_y
@@ -197,11 +237,11 @@ class Camera:
         :param delay: the amount of time until deactivation is triggered.
         """
         log = self.log.getChild("deactivate")
-        log.info("now starting wait for", delay, 'seconds')
+        log.info(f"now starting wait for {delay}s...")
 
         if delay:  # Start a Timer
             self.deactivating = True
-            worker = threading.Timer(delay,  self._deactivate_function)
+            worker = threading.Timer(delay, self._deactivate_function)
             worker.start()
             return worker
         else:
@@ -216,7 +256,7 @@ class Camera:
 
         if self.current_recording_name != '':  # If we are recording, stop it
             while True:
-                log.info('stopping the recording... (name='+self.current_recording_name+')')
+                log.info('stopping the recording... (name=' + self.current_recording_name + ')')
                 stopped = self.media.stop_recording(self.current_recording_name)  # Did we stop the recording?
                 if stopped:  # We succeeded!
                     log.info('Success stopping recording!')

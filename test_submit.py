@@ -13,12 +13,13 @@ persec = 1
 while True:
     t = time.time()
     newalt = random.random() + alt
-    newlat = random.random()/1000000 + lat
-    newlong = random.random()/1000000 + long
-
+    newalt = alt
+    newlat = random.random()/10000 + lat
+    newlong = random.random()/10000 + long
+    consumer.send("dronetracker-command", b"on")
     consumer.send("dronetracker-data", json.dumps({"position": {"latitude": newlat, "longitude": newlong,
                                                                 "altitude": newalt},
-                                                   "velocity": {"x": 2, "y": 3, "z": 4}}).encode("utf-8"))
+                                                   "velocity": {"x": 1, "y": 0, "z": 0}}).encode("utf-8"))
     i += 1
     delta = 1/persec - (time.time()-t)
     if delta > 0:

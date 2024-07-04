@@ -4,11 +4,16 @@ from Drone import Drone
 from Camera import Camera
 import logging
 
-from Watcher import Watcher
+from Gateway import Gateway
 
 with open("config.yml") as config_file:
     configuration = YAML().load(config_file)
 hertz_deactivated = configuration["kafka"]["hz"] == 0
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("kafka").setLevel(logging.WARNING)  # We only want warnings from Kafka
+
+
+
 
 
 # def print_information(camera):
@@ -47,7 +52,8 @@ def get_drone():
     log = logging.getLogger('get_drone')
     log.info('Waiting for drone...')
     while True:
-        new_drone = Drone(connection=configuration["kafka"]["ip"], topic=configuration["kafka"]["data_topic"])
+        new_drone = Drone(connection=configuration["kafka"]["ip"], topic=configuration["kafka"]["data_topic"],
+                          timeout=configuration["experiment"]["stop_recording_after"])
         if new_drone.consumer is None:  # Drone consumer failed connection, so we will try again
             log.info("Failed to connect to Kafka server! Trying again in 1 second...")
             time.sleep(1)
@@ -76,31 +82,36 @@ def wait():
 
 active = False
 if __name__ == '__main__':
-    watcher = Watcher(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
+    gateway = Gateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
     drone = get_drone()
     camera = Camera(configuration,
-               lat_long_format="decimal",
-               actually_move=False)  # Create camera
+                    lat_long_format="decimal",
+                    actually_move=False)  # Create camera
     while True:
         logging.info("Now waiting for experiment...")
-        watcher.wait_for_status("on", hz=configuration["kafka"]["hz"])
-        logging.info("Done")
+        gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])
+        logging.info("Experiment is ready!")
+        last_tick_active = False
         while True:
             start = time.time()
-            watcher.update()  # Update experiment status
-            if watcher.status == "off":  # Experiment is over
-                logging.info("Experiment has been disabled! Deactivating camera!")
+            gateway.update()  # Update experiment status
+            if gateway.status == "off" and last_tick_active:  # Experiment is over
+                logging.error("We have been forcefully disabled by command action!")
+                camera.deactivate()  # Deactivate the camera
+                break  # Exit loop
+            if last_tick_active and not drone.most_recent:  # Drone hasn't received anything
+                logging.error("Packet timeout has occurred, deactivating")
                 camera.deactivate()  # Deactivate the camera
                 break  # Exit loop
             drone.update()  # Update drone position/velocity data
 
-            if drone.lat is not None:  # If we have received at least one packet
-                camera.move_camera([drone.lat, drone.long, drone.alt])
+            if drone.most_recent:  # If we are active
+                last_tick_active = True
+                camera.move_camera([drone.lat, drone.long, drone.alt, drone.vx, drone.vy, drone.vz])
             end = time.time()
             if not hertz_deactivated:
-                delta = 1/configuration["kafka"]["hz"] - (end-start)
-                if delta:
+                delta = 1 / configuration["kafka"]["hz"] - (end - start)
+                if delta > 0:
                     logging.debug(f"Now sleeping for {delta} seconds because of hertz: {configuration['kafka']['hz']}")
                     time.sleep(delta)
         drone.reset()
-

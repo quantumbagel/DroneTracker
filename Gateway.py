@@ -4,17 +4,17 @@ import logging
 import kafka
 from kafka import KafkaConsumer
 
-VALID_STATUS = ["off", "on", "auto"]
+VALID_STATUS = [b"off", b"on", b"auto"]
 
 
-class Watcher:
+class Gateway:
     """
     A class to watch for changes to the dronetracker-command Kafka topic
     """
 
-    def __init__(self, connection: str, command_topic: str):
+    def __init__(self, connection: str, command_topic: str = "dronetracker_command"):
         """
-        Initialize the Watcher class
+        Initialize the Gateway class
         :param connection: Kafka connection IP
         :param command_topic: Kafka topic to watch for
         """
@@ -22,9 +22,9 @@ class Watcher:
         self.consumer = KafkaConsumer(bootstrap_servers=[connection])
         self.topic = command_topic
         self.consumer.subscribe([self.topic])
-        self.log = logging.getLogger('Watcher')
+        self.log = logging.getLogger('Gateway')
         self.status = "off"  # We default to "off" on startup.
-        # Should the dronetracker-command topic send confirmation that experiment is active?
+        # Should the command  topic send confirmation that experiment is active?
 
     def update(self):
         """
@@ -38,6 +38,7 @@ class Watcher:
             if len(msg) > 1:  # We were sleeping or there were a bunch of things happening
                 log.warning("Received multiple packets in one cycle: have we been sleeping?")
             msg = msg[kafka.TopicPartition(self.topic, 0)][-1]  # We need to get the most recent message, thus the -1
+
             if msg.value not in VALID_STATUS:  # Ensure validity
                 log.warning(f"Received invalid status from Kafka server! status={msg.value}. Ignoring message")
                 return False
@@ -58,6 +59,7 @@ class Watcher:
             hz = math.inf
         start = time.time()
         log = self.log.getChild("wait_for_status")
+        status = status.encode("utf-8")
         if status not in VALID_STATUS:  # Ensure validity
             raise ValueError(f"Received invalid status from call to wait_for_status()! status={status}")
         while True:
@@ -67,11 +69,11 @@ class Watcher:
                 break
             cycle_end = time.time()
             delta = 1/hz - (cycle_end-cycle_start)
-            if delta:
+            if delta > 0:
                 log.debug(f"Now sleeping for {round(delta, 2)} seconds")
                 time.sleep(delta)
         end = time.time()
-        log.info(f"Received message of status {status} from Kafka server after {round(start-end, 2)} seconds")
+        log.info(f"Received message of status {status} from Kafka server after {round(end-start, 2)} seconds")
 
 
 

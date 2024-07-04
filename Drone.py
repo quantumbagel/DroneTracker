@@ -49,11 +49,12 @@ class Drone:
             msg = msg[kafka.TopicPartition(self.topic, 0)][-1]  # We need to get the most recent message, thus the -1
         else:
             log.debug("No new data!")  # We don't need to do anything, just return.
+            if time.time() - self.most_recent > self.timeout:  # We can go into "deactivate" mode
+                self.most_recent = 0
             # The most recent data is already saved
             return
-        t = (datetime.utcfromtimestamp(msg.timestamp // 1000)
-             .replace(microsecond=msg.timestamp % 1000 * 1000).timestamp())  # SO Kafka -> UTC time conversion
-        self.most_recent = t  # This is a new most recent
+
+        self.most_recent = msg.timestamp // 1000  # This is a new most recent
         value = json.loads(msg.value)  # Load the JSON data in
         try:
             # Get data from dictionary and save it to class instance variables

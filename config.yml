@@ -11,9 +11,8 @@ camera:
   wait: 0 # the time to wait before checking for updates. This mainly has an effect on CPU usage.
   delay: 10 # the delay after the activate_method detects a deactivation for the camera to stop recording.
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
-  is_upside_down: false # whether the camera is mounted upside down
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
-  lead: 0 # The number of seconds to lead the drone by
+  lead: 1 # The number of seconds to lead the drone by
 drone:
   x: 3 # size (in meters, relative to front of drone)
   y: 4
@@ -30,4 +29,6 @@ kafka:
   data_topic: "dronetracker-data"
   command_topic: "dronetracker-command"
   hz: 10
+experiment:
+  stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
 logs: "debug" # "debug", "info", or "error"
