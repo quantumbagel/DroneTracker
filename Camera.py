@@ -2,14 +2,13 @@ import logging
 import math
 import threading
 from geopy.distance import geodesic
-
-logging.basicConfig(level=logging.DEBUG)  # This line prevents sensecam_control from stealing the root logger
+logging.basicConfig(level=logging.DEBUG)  # This line prevents the vapix API from stealing the root logger
 from sensecam_control import vapix_control, vapix_config
 
 
 class NullController:
     """
-    A controller class to act as a test version of the main code
+    A controller class to act as a test version of the main code. Used when actually_move is set to False
     """
 
     def __init__(self):
@@ -43,23 +42,19 @@ class Camera:
 
     def __init__(self,
                  config: dict,
-                 lat_long_format='degrees',
                  actually_move=True,
                  disk_name='SD_DISK',
                  profile_name=None):
         """
         Initialize the values and convert to decimal if needed
         :param config: the configuration dictionary
-        :param lat_long_format: the format the latitude and longitude are in
-        :param camera_activate_radius: the horizontal radius (m) that the drone must be in for the camera to record
+        :param actually_move: Whether the camera should actually move or use the NullController class
+        :param disk_name: the name of the disk to use for recordings
+        :param profile_name: the name of the recording profile to use (None is fine)
+        :return: None
         """
-        assert lat_long_format in ['degrees', 'decimal']
-        if lat_long_format == 'degrees':
-            self.lat = self.degrees_to_decimal(config['camera']['lat'])
-            self.long = self.degrees_to_decimal(config['camera']['long'])
-        else:
-            self.lat = float(config['camera']['lat'])
-            self.long = float(config['camera']['long'])
+        self.lat = float(config['camera']['lat'])
+        self.long = float(config['camera']['long'])
         self.config = config
         self.alt = config['camera']['alt']
         self.dist_xz = -1
@@ -146,12 +141,12 @@ class Camera:
         z = math.cos(pre_led_heading_xz) * pre_led_dist_xz
 
         log.debug(f"Initially calculated data: "
-                 f"heading_xz {pre_led_heading_xz / pi_c} "
-                 f"heading_y {pre_led_heading_y / pi_c} "
-                 f"dist_xz {pre_led_dist_xz} "
-                 f"dist_x {x} "
-                 f"dist_y {y} "
-                 f"dist_z {z}")
+                  f"heading_xz {pre_led_heading_xz / pi_c} "
+                  f"heading_y {pre_led_heading_y / pi_c} "
+                  f"dist_xz {pre_led_dist_xz} "
+                  f"dist_x {x} "
+                  f"dist_y {y} "
+                  f"dist_z {z}")
 
         lead_time = self.config['camera']['lead']
 
@@ -168,12 +163,12 @@ class Camera:
         dist_y = y
 
         log.debug(f"Data after camera lead of {lead_time}s: "
-                 f"heading_xz {heading_xz / pi_c} "
-                 f"heading_y {heading_y / pi_c} "
-                 f"dist_xz {dist_xz} "
-                 f"dist_x {x} "
-                 f"dist_y {y} "
-                 f"dist_z {z}")
+                  f"heading_xz {heading_xz / pi_c} "
+                  f"heading_y {heading_y / pi_c} "
+                  f"dist_xz {dist_xz} "
+                  f"dist_x {x} "
+                  f"dist_y {y} "
+                  f"dist_z {z}")
 
         return heading_xz / pi_c, heading_y / pi_c, dist_xz, dist_y
 
@@ -195,6 +190,7 @@ class Camera:
     def move_camera(self, drone_loc):
         """
         A function to send the command to pan, tilt, and zoom to the camera over whatever protocol we end up using
+        :param drone_loc: the location and velocity of the drone (lat, long, alt, vx, vy, vz)
         :return: none
         """
         log = self.log.getChild("move_camera")  # Get log handler

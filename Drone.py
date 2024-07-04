@@ -1,6 +1,5 @@
 import logging
 import time
-from datetime import datetime
 from kafka.errors import NoBrokersAvailable
 import kafka
 import json
@@ -15,6 +14,9 @@ class Drone:
         """
         Initialize and connect to the drone.
         :param connection: where to connect to the Kafka server
+        :param topic: topic to subscribe to for position/velocity information
+        :param timeout: The maximum age of packets from the Kafka server before we assume the experiment has concluded
+        :return: None
         """
         self.start_time = time.time()
         self.lat = self.long = self.alt = self.vx = self.vy = self.vz = None
@@ -29,6 +31,7 @@ class Drone:
     def connect(self):
         """
         Restart and connect to the Kafka server.
+        :return: None
         """
         try:
             self.consumer = kafka.KafkaConsumer(bootstrap_servers=[self.connection])
@@ -40,7 +43,7 @@ class Drone:
     def update(self):
         """
         Get the position of the drone and save it to the class
-        :return: nothing
+        :return: None
         """
         log = self.log.getChild("update")
         msg = self.consumer.poll()
@@ -70,7 +73,7 @@ class Drone:
 
     def reset(self):
         """
-        Reset the drone's data so it isn't used in future experiments
+        Reset the drone's data, so it isn't used in future experiments
+        :return: None
         """
         self.lat = self.long = self.alt = self.vx = self.vy = self.vz = None
-
