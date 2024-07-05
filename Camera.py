@@ -33,6 +33,12 @@ class NullController:
         self.fake_value += 1
         return f'fake-recording-name{self.fake_value}', 0
 
+    def export_recording(self, *args, profile=None):
+        log = self.log.getChild("fake-export")
+        log.info("exported recording, except we didn't.")
+        self.fake_value += 1
+        return True
+
 
 class Camera:
     """
@@ -260,6 +266,13 @@ class Camera:
                     break
                 else:  # We failed :(
                     log.info('failed to stop recording! retrying...')
+            export_status = self.media.export_recording(self.disk_name,
+                                                        self.current_recording_name,
+                                                        self.config["camera"]["store_recordings"]
+                                                        + self.current_recording_name+".mkv")
+            if not export_status:
+                log.error(f"Failed to export recording {self.current_recording_name}."
+                          f" The recording should still be on the SD card.")
             self.current_recording_name = ''  # We aren't recording anymore
 
         # Get the position we need to go to when we deactivate

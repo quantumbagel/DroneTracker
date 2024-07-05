@@ -42,9 +42,7 @@ active = False
 if __name__ == '__main__':
     gateway = Gateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
     drone = get_drone()
-    camera = Camera(configuration,
-                    lat_long_format="decimal",
-                    actually_move=False)  # Create camera
+    camera = Camera(configuration, actually_move=False)  # Create camera
     while True:
         logging.info("Now waiting for experiment...")
         gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])

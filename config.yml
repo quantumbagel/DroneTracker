@@ -12,6 +12,7 @@ camera:
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
   lead: 1 # The number of seconds to lead the drone by
+  store_recordings: "recordings"  # The path to store the recordings in
 drone:
   x: 3 # size (in meters, relative to front of drone)
   y: 4
