@@ -168,6 +168,12 @@ class Camera:
         heading_y = math.asin(y / math.sqrt(x ** 2 + y ** 2 + z ** 2))
         dist_y = y
 
+        if not lead_time:  # TODO: fix and remove this bandaid (thx arcsin)
+            heading_xz = pre_led_heading_xz
+            heading_y = pre_led_heading_y
+            dist_xz = pre_led_dist_xz
+            dist_y = pre_led_dist_y
+
         log.debug(f"Data after camera lead of {lead_time}s: "
                   f"heading_xz {heading_xz / pi_c} "
                   f"heading_y {heading_y / pi_c} "
