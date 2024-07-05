@@ -6,7 +6,7 @@ import json
 import time
 import kafka
 
-consumer = kafka.KafkaProducer(bootstrap_servers=['localhost:9092'])
+consumer = kafka.KafkaProducer(bootstrap_servers=['192.168.60.202:9092'])
 while True:
     lat = float(input("lat: "))
     lon = float(input("lon: "))

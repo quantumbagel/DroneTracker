@@ -21,11 +21,11 @@ scale: # at 1x zoom
   dist: 0.7239 # at x meters away from the camera... (calculated for q8615-e)
   width: 0.889 # its viewing angle is x meters wide
 camera_login:
-  ip: "192.168.0.90" # the ip of the camera
+  ip: "192.168.60.101" # the ip of the camera
   username: "" # the username of the camera
   password: "" # the password of the camera
 kafka:
-  ip: "localhost:9092"
+  ip: "192.168.60.202:9092"
   data_topic: "dronetracker-data"
   command_topic: "dronetracker-command"
   hz: 10
