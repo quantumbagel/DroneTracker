@@ -268,7 +268,7 @@ class Camera:
                     log.info('failed to stop recording! retrying...')
             export_status = self.media.export_recording(self.disk_name,
                                                         self.current_recording_name,
-                                                        self.config["camera"]["store_recordings"]
+                                                        self.config["camera"]["store_recordings"] + "/"
                                                         + self.current_recording_name+".mkv")
             if not export_status:
                 log.error(f"Failed to export recording {self.current_recording_name}."

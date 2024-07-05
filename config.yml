@@ -1,8 +1,8 @@
 camera:
-  alt: 82.973 # camera alt (meters above sea level)
-  lat: "35.727481" # can be decimal int, string, or degrees copied from Google Maps (format 35°45'31.2"N or 78°53'59.5"W)
+  alt: 85.763 # camera alt (meters above sea level)
+  lat: "35.727481" # can be decimal int, string, or degrees copied from Google Maps (format 35  45'31.2"N or 78  53'59.5"W)
   long: "-78.695925"
-  offset: 0  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
+  offset: 51.733814668 #-32.5  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
   deactivate_pos:  # This example will make the camera look straight down without panning it.
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
     tilt: -90 # the tilt to go to when the camera deactivates (0 is no tilt change)
@@ -32,3 +32,6 @@ kafka:
 experiment:
   stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
 logs: "debug" # "debug", "info", "warning" or "error"
+
+
+
