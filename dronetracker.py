@@ -9,7 +9,7 @@ from Gateway import Gateway
 with open("config.yml") as config_file:
     configuration = YAML().load(config_file)
 
-log_level = {"debug": 10, "info": 20, "warning": 30, "error": 40}[configuration['debug']]
+log_level = {"debug": 10, "info": 20, "warning": 30, "error": 40}[configuration['logs']]
 hertz_deactivated = configuration["kafka"]["hz"] == 0
 logging.basicConfig(level=log_level)
 logging.getLogger("kafka").setLevel(level=log_level)
