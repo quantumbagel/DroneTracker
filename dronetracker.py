@@ -33,16 +33,11 @@ def get_drone():
     return new_drone
 
 
-def wait():
-    log = logging.getLogger('get_active_tracking')
-    log.info("Initializing ")
-
-
 active = False
 if __name__ == '__main__':
     gateway = Gateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
     drone = get_drone()
-    camera = Camera(configuration, actually_move=False)  # Create camera
+    camera = Camera(configuration, actually_move=True)  # Create camera
     while True:
         logging.info("Now waiting for experiment...")
         gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])

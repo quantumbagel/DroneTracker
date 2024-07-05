@@ -75,12 +75,12 @@ class Camera:
         self.disk_name = disk_name
         self.profile_name = profile_name
         if self.move:
-            self.controller = vapix_control.CameraControl(config['login']['ip'],
-                                                          config['login']['username'],
-                                                          config['login']['password'])
-            self.media = vapix_config.CameraConfiguration(config['login']['ip'],
-                                                          config['login']['username'],
-                                                          config['login']['password'])
+            self.controller = vapix_control.CameraControl(config['camera_login']['ip'],
+                                                          config['camera_login']['username'],
+                                                          config['camera_login']['password'])
+            self.media = vapix_config.CameraConfiguration(config['camera_login']['ip'],
+                                                          config['camera_login']['username'],
+                                                          config['camera_login']['password'])
         else:
             self.controller = NullController()
             self.media = NullController()
