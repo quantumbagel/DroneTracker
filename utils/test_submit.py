@@ -1,3 +1,7 @@
+"""
+A test program to send data to a Kafka server. Just for testing purposes.
+"""
+
 import json
 import random
 import time
@@ -13,7 +17,6 @@ persec = 1
 while True:
     t = time.time()
     newalt = random.random() + alt
-    newalt = alt
     newlat = random.random()/10000 + lat
     newlong = random.random()/10000 + long
     consumer.send("dronetracker-command", b"on")

@@ -1,12 +1,15 @@
+"""
+A simple program to control the camera using arrow keys and the keyboard.
+"""
 from sensecam_control import vapix_control, vapix_config
 import ruamel.yaml
 import keyboard
 config_yaml = ruamel.yaml.YAML()
-config = config_yaml.load(open('config.yml'))
+config = config_yaml.load(open('../config.yml'))
 print("Establishing connection to camera... ", end='')
-camera = vapix_control.CameraControl(config['login']['ip'], config['login']['username'], config['login']['password'])
-image_control = vapix_config.CameraConfiguration(config['login']['ip'], config['login']['username'],
-                                                 config['login']['password'])
+camera = vapix_control.CameraControl(config['camera_login']['ip'], config['camera_login']['username'], config['camera_login']['password'])
+image_control = vapix_config.CameraConfiguration(config['camera_login']['ip'], config['camera_login']['username'],
+                                                 config['camera_login']['password'])
 
 print('done')
 is_recording = False
