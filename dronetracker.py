@@ -8,9 +8,11 @@ from Gateway import Gateway
 
 with open("config.yml") as config_file:
     configuration = YAML().load(config_file)
+
+log_level = {"debug": 10, "info": 20, "warning": 30, "error": 40}[configuration['debug']]
 hertz_deactivated = configuration["kafka"]["hz"] == 0
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("kafka").setLevel(logging.WARNING)  # We only want warnings from Kafka
+logging.basicConfig(level=log_level)
+logging.getLogger("kafka").setLevel(level=log_level)
 
 
 def get_drone():
