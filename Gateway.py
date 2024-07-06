@@ -55,10 +55,10 @@ class KafkaGateway:
                     self.status = message.value
                     updated = True
                     continue
-                elif message.value == "list_recordings":
+                elif message.value == b"list_recordings":
                     log.info("Received request for list of recordings, responding...")
                     self.producer.send(self.output_topic, value=recordings)
-                elif message.value.startswith("download_recording"):
+                elif message.value.startswith(b"download_recording"):
                     log.info("Received request for download of recording {}, transferring file in separate thread...")
                     try:
                         recording_num = int(message.value.split()[1])
