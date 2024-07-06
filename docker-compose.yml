@@ -1,12 +1,13 @@
 version: '3.10'
 
 services:
-  cameradistance:
-    image: cameradist-aerpaw:latest
+  dronetracker:
+    image: dronetracker-aerpaw:latest
     build:
       context: .
       network: host
     privileged: true
+    network_mode: 'host'
     networks:
     - app
     - outer-world
