@@ -8,9 +8,6 @@ services:
       network: host
     privileged: true
     network_mode: 'host'
-    networks:
-    - app
-    - outer-world
 networks:
   app:
     driver: bridge
