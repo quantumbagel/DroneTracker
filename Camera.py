@@ -143,8 +143,8 @@ class Camera:
 
         # Calculate x, y, and z vectors
         x = math.sin(pre_led_heading_xz) * pre_led_dist_xz
-        y = pre_led_dist_y
-        z = math.cos(pre_led_heading_xz) * pre_led_dist_xz
+        z = pre_led_dist_y
+        y = math.cos(pre_led_heading_xz) * pre_led_dist_xz
 
         log.debug(f"Initially calculated data: "
                   f"heading_xz {pre_led_heading_xz / pi_c} "
@@ -159,13 +159,13 @@ class Camera:
         # Lead the camera (calculate new relative x, y, and z)
         # We do north/east/up, I guess DroneKit does north/east/down? This can be changed easily
         x += lead_time * vx
-        y += lead_time * - vy
-        z += lead_time * vz
+        z += lead_time * - vz
+        y += lead_time * vy
 
         # Calculate new heading/distances based on new relative x, y, and z
-        heading_xz = math.acos(z / math.sqrt(x ** 2 + z ** 2))
-        dist_xz = math.sqrt(x ** 2 + z ** 2)
-        heading_y = math.asin(y / math.sqrt(x ** 2 + y ** 2 + z ** 2))
+        heading_xz = math.acos(z / math.sqrt(x ** 2 + y ** 2))
+        dist_xz = math.sqrt(x ** 2 + y ** 2)
+        heading_y = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
         dist_y = y
 
         if not lead_time:  # TODO: fix and remove this bandaid (thx arcsin)
