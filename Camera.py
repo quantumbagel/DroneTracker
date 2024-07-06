@@ -222,24 +222,24 @@ class Camera:
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
-            # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
-            if ((abs(self.current_pan - self.heading_xz))
-                    > self.config['camera']['min_step'] or
-                    (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
-                    (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step'])):
+        # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
+        if ((abs(self.current_pan - self.heading_xz))
+                > self.config['camera']['min_step'] or
+                (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
+                (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step'])):
 
-                log.info(f'moving to (p, t, z) {self.heading_xz + self.config["camera"]["offset"]},'
-                         f' {self.heading_y}, {self.zoom}')  # Show the position we move to
+            log.info(f'moving to (p, t, z) {self.heading_xz + self.config["camera"]["offset"]},'
+                     f' {self.heading_y}, {self.zoom}')  # Show the position we move to
 
-                # Actually tell the camera to move
-                self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'],
-                                              self.heading_y, self.zoom)
-                # Update internal class data
-                self.current_pan = self.heading_xz
-                self.current_tilt = self.heading_y
-                self.current_zoom = self.zoom
-            else:  # We don't need to move the camera
-                log.debug('Step is not significant enough to move the camera. ')
+            # Actually tell the camera to move
+            self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'],
+                                          self.heading_y, self.zoom)
+            # Update internal class data
+            self.current_pan = self.heading_xz
+            self.current_tilt = self.heading_y
+            self.current_zoom = self.zoom
+        else:  # We don't need to move the camera
+            log.debug('Step is not significant enough to move the camera. ')
 
     def deactivate(self, delay=0):
         """
