@@ -43,42 +43,45 @@ class KafkaGateway:
         """
         log = self.log.getChild("update")
         msg = self.consumer.poll()  # Update consumer data
+        updated = False
         if len(msg):  # is there new data?
-            message = msg[kafka.TopicPartition(self.command_topic, 0)]
+            messages = msg[kafka.TopicPartition(self.command_topic, 0)]
             # Get deterministic list of recordings without subprocess
             recordings = sorted([file for file in os.listdir(self.recording_storage_location)
                                  if file.endswith(".mkv")])
-            if message.value in VALID_STATUS:  # Ensure validity
-                log.info(f"Successfully received new status from Kafka server status={message.value}")
-                self.status = message.value
-                return True
-            elif message.value == "list_recordings":
-                log.info("Received request for list of recordings, responding...")
-                self.producer.send(self.output_topic, value=recordings)
-            elif message.value.startswith("download_recording"):
-                log.info("Received request for download of recording {}, transferring file in separate thread...")
-                try:
-                    recording_num = int(message.value.split()[1])
-                    oeo_server_ip = message.value.split()[2]
-                except IndexError or ValueError:
-                    log.error(f"Invalid arguments from verb download_recording (input was '{message.value}'")
-                    return False
+            for message in messages:
+                if message.value in VALID_STATUS:  # Ensure validity
+                    log.info(f"Successfully received new status from Kafka server status={message.value}")
+                    self.status = message.value
+                    updated = True
+                    continue
+                elif message.value == "list_recordings":
+                    log.info("Received request for list of recordings, responding...")
+                    self.producer.send(self.output_topic, value=recordings)
+                elif message.value.startswith("download_recording"):
+                    log.info("Received request for download of recording {}, transferring file in separate thread...")
+                    try:
+                        recording_num = int(message.value.split()[1])
+                        oeo_server_ip = message.value.split()[2]
+                    except IndexError or ValueError:
+                        log.error(f"Invalid arguments from verb download_recording (input was '{message.value}'")
+                        continue
 
-                def send_recording(identification):
-                    os.system(f"netcat -N {oeo_server_ip} {self.oeo_port} < {recordings[recording_num]}")
-                    self.export_threads.pop(identification)
+                    def send_recording(identification):
+                        os.system(f"netcat -N {oeo_server_ip} {self.oeo_port} < {recordings[recording_num]}")
+                        self.export_threads.pop(identification)
 
-                self.export_threads.update({len(self.export_threads):
-                                            threading.Thread(target=send_recording,
-                                                             args=[len(self.export_threads)])})
-                self.export_threads[len(self.export_threads) - 1].start()
+                    self.export_threads.update({len(self.export_threads):
+                                                    threading.Thread(target=send_recording,
+                                                                     args=[len(self.export_threads)])})
+                    self.export_threads[len(self.export_threads) - 1].start()
 
-            log.error(f"Received invalid message from Kafka server! status={message.value}. Ignoring message")
-            return False
+                log.error(f"Received invalid message from Kafka server! status={message.value}. Ignoring message")
         else:
             log.debug("No new data received from poll action.")  # We don't need to do anything, just return.
             # The most recent data is already saved
             return False
+        return updated
 
     def wait_for_status(self, status: str, hz: int = 10):
         """
