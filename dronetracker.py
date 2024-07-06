@@ -4,7 +4,7 @@ from Drone import Drone
 from Camera import Camera
 import logging
 
-from Gateway import Gateway
+from Gateway import KafkaGateway
 
 with open("config.yml") as config_file:
     configuration = YAML().load(config_file)
@@ -35,7 +35,7 @@ def get_drone():
 
 active = False
 if __name__ == '__main__':
-    gateway = Gateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
+    gateway = KafkaGateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
     drone = get_drone()
     camera = Camera(configuration, actually_move=True)  # Create camera
     while True:
