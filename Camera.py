@@ -223,9 +223,10 @@ class Camera:
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
             # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
-            if (abs(self.current_pan - self.heading_xz)) > self.config['camera']['min_step'] or \
+            if ((abs(self.current_pan - (self.heading_xz + self.config["camera"]["offset"])))
+                    > self.config['camera']['min_step'] or
                     (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
-                    (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step']):
+                    (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step'])):
 
                 log.info(f'moving to (p, t, z) {self.heading_xz + self.config["camera"]["offset"]},'
                          f' {self.heading_y}, {self.zoom}')  # Show the position we move to
