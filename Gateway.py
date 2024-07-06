@@ -57,7 +57,7 @@ class KafkaGateway:
                     continue
                 elif message.value == b"list_recordings":
                     log.info("Received request for list of recordings, responding...")
-                    self.producer.send(self.output_topic, value='\n'.join(recordings))
+                    self.producer.send(self.output_topic, value='\n'.join(recordings).encode("utf-8"))
                 elif message.value.startswith(b"download_recording"):
                     log.info("Received request for download of recording {}, transferring file in separate thread...")
                     try:
