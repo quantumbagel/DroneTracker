@@ -35,7 +35,10 @@ def get_drone():
 
 active = False
 if __name__ == '__main__':
-    gateway = KafkaGateway(configuration["kafka"]["ip"], configuration["kafka"]["command_topic"])
+    gateway = KafkaGateway(configuration["kafka"]["ip"],
+                           configuration["kafka"]["command_topic"],
+                           configuration["kafka"]["output_topic"],
+                           configuration["camera"]["store_recordings"])
     drone = get_drone()
     camera = Camera(configuration, actually_move=True)  # Create camera
     while True:

@@ -6,7 +6,7 @@ camera:
   deactivate_pos:  # This example will make the camera look straight down without panning it.
     pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
     tilt: -90 # the tilt to go to when the camera deactivates (0 is no tilt change)
-in  min_zoom_step: 2000 # the minimum change in zoom to update the ptz in pan steps, which run from 0 to 9999 linearly
+  min_zoom_step: 2000 # the minimum change in zoom to update the ptz in pan steps, which run from 0 to 9999 linearly
   delay: 10 # the delay after the activate_method detects a deactivation for the camera to stop recording.
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
@@ -27,6 +27,7 @@ kafka:
   ip: "192.168.60.202:9092"
   data_topic: "dronetracker-data"
   command_topic: "dronetracker-command"
+  output_topic: "dronetracker-output"
   hz: 10
 experiment:
   stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
