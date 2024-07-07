@@ -47,6 +47,8 @@ class KafkaGateway:
         if len(msg):  # is there new data?
             messages = msg[kafka.TopicPartition(self.command_topic, 0)]
             # Get deterministic list of recordings without subprocess
+            if not os.path.exists(self.recording_storage_location):
+                os.makedirs(self.recording_storage_location)
             recordings = sorted([file for file in os.listdir(self.recording_storage_location)
                                  if file.endswith(".mkv")])
             for message in messages:
@@ -57,7 +59,10 @@ class KafkaGateway:
                     continue
                 elif message.value == b"list_recordings":
                     log.info("Received request for list of recordings, responding...")
+                    print(recordings)
                     self.producer.send(self.output_topic, value='\n'.join(recordings).encode("utf-8"))
+                    self.producer.flush()
+                    continue
                 elif message.value.startswith(b"download_recording"):
                     log.info("Received request for download of recording {}, transferring file in separate thread...")
                     try:
@@ -75,6 +80,7 @@ class KafkaGateway:
                                                     threading.Thread(target=send_recording,
                                                                      args=[len(self.export_threads)])})
                     self.export_threads[len(self.export_threads) - 1].start()
+                    continue
 
                 log.error(f"Received invalid message from Kafka server! status={message.value}. Ignoring message")
         else:
