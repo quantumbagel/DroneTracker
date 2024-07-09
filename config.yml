@@ -12,7 +12,9 @@ camera:
   maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
   zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
   lead: 0 # The number of seconds to lead the drone by
+  move: true  # Whether the camera should move or not
   store_recordings: "recordings"  # The path to store the recordings in
+  stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
 drone:
   x: 3 # size (in meters, relative to front of drone)
   y: 4
@@ -30,8 +32,6 @@ kafka:
   command_topic: "dronetracker-command"
   output_topic: "dronetracker-output"
   hz: 10
-experiment:
-  stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
 logs: "debug" # "debug", "info", "warning" or "error"
 
 

@@ -24,7 +24,7 @@ def get_drone():
     log.info('Waiting for drone...')
     while True:
         new_drone = Drone(connection=configuration["kafka"]["ip"], topic=configuration["kafka"]["data_topic"],
-                          timeout=configuration["experiment"]["stop_recording_after"])
+                          timeout=configuration["camera"]["stop_recording_after"])
         if new_drone.consumer is None:  # Drone consumer failed connection, so we will try again
             log.info("Failed to connect to Kafka server! Trying again in 1 second...")
             time.sleep(1)
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                            configuration["kafka"]["output_topic"],
                            configuration["camera"]["store_recordings"])
     drone = get_drone()
-    camera = Camera(configuration, actually_move=True)  # Create camera
+    camera = Camera(configuration, actually_move=configuration["camera"]["actually_move"])  # Create camera
     while True:
         logging.info("Now waiting for experiment...")
         gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])

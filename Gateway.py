@@ -52,28 +52,41 @@ class KafkaGateway:
             recordings = sorted([file for file in os.listdir(self.recording_storage_location)
                                  if file.endswith(".mkv")])
             for message in messages:
-                if message.value in VALID_STATUS:  # Ensure validity
+                if message.key == b"track_camera" and message.value in VALID_STATUS:  # Ensure validity
                     log.info(f"Successfully received new status from Kafka server status={message.value}")
                     self.status = message.value
                     updated = True
+                    self.producer.send(self.output_topic, key=b"track_camera", value="success")
                     continue
-                elif message.value == b"list_recordings":
+                elif message.key == b"track_camera" and message.value not in VALID_STATUS:
+                    log.error(f"Received invalid track_camera mode: {message.value}")
+                    self.producer.send(self.output_topic, key=b"track_camera", value="failure")
+                    continue
+                elif message.key == b"list_recordings":
                     log.info("Received request for list of recordings, responding...")
-                    print(recordings)
-                    self.producer.send(self.output_topic, value='\n'.join(recordings).encode("utf-8"))
+                    self.producer.send(self.output_topic, key=b"list_recordings",
+                                       value='\n'.join(recordings).encode("utf-8"))
                     self.producer.flush()
                     continue
-                elif message.value.startswith(b"download_recording"):
+                elif message.key == b"download_recording":
                     log.info("Received request for download of recording {}, transferring file in separate thread...")
                     try:
-                        recording_num = int(message.value.split()[1])
-                        oeo_server_ip = message.value.split()[2]
+                        recording_num = int(message.value.split()[0])
+                        oeo_server_ip = message.value.split()[1]
                     except IndexError or ValueError:
                         log.error(f"Invalid arguments from verb download_recording (input was '{message.value}'")
                         continue
 
                     def send_recording(identification):
-                        os.system(f"netcat -N {oeo_server_ip} {self.oeo_port} < {recordings[recording_num]}")
+                        netcat = os.system(f"netcat -N {oeo_server_ip} {self.oeo_port} < {recordings[recording_num]}")
+                        if netcat:
+                            log.error("Failed to download recording, returning failure")
+                            self.producer.send(self.output_topic, key=b"download_recording",
+                                               value=f"failure {recording_num}".encode("utf-8"))
+                        else:
+                            log.info("Successfully transferred recording, returning success")
+                            self.producer.send(self.output_topic, key=b"download_recording",
+                                               value=f"success {recording_num}".encode("utf-8"))
                         self.export_threads.pop(identification)
 
                     self.export_threads.update({len(self.export_threads):
@@ -82,7 +95,8 @@ class KafkaGateway:
                     self.export_threads[len(self.export_threads) - 1].start()
                     continue
 
-                log.error(f"Received invalid message from Kafka server! status={message.value}. Ignoring message")
+                log.error(f"Received invalid message from Kafka server! message={message.key} / {message.value}."
+                          f" Ignoring message")
         else:
             log.debug("No new data received from poll action.")  # We don't need to do anything, just return.
             # The most recent data is already saved
