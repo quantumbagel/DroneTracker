@@ -165,7 +165,7 @@ class Camera:
         # Calculate new heading/distances based on new relative x, y, and z
         heading_xy = math.asin(x / math.sqrt(x ** 2 + y ** 2))
         if pre_led_heading_xy > 0:
-            heading_xy = 180 - heading_xy  # Fix
+            heading_xy = math.pi - heading_xy  # Fix
         dist_xy = math.sqrt(x ** 2 + y ** 2)
         heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
         dist_z = z
