@@ -63,12 +63,12 @@ class Camera:
         self.long = float(config['camera']['long'])
         self.config = config
         self.alt = config['camera']['alt']
-        self.dist_xz = -1
-        self.dist_y = -1
+        self.dist_xy = -1
+        self.dist_z = -1
         self.dist = -1
         self.log = logging.getLogger('Camera')
-        self.heading_xz = -1
-        self.heading_y = -1
+        self.heading_xy = -1
+        self.heading_z = -1
         self.zoom = -1
         self.drone_loc = []
         self.move = actually_move
@@ -97,10 +97,10 @@ class Camera:
         :return: none
         """
         log = self.log.getChild("update")
-        self.heading_xz, self.heading_y, self.dist_xz, self.dist_y = self.calculate_heading_directions()
+        self.heading_xy, self.heading_z, self.dist_xy, self.dist_z = self.calculate_heading_directions()
         self.dist, self.zoom = self.calculate_zoom()
         log.debug(f'updated (pan, tilt, horiz_distance, vert_distance, distance, zoom)'
-                  f' {self.heading_xz}, {self.heading_y}, {self.dist_xz}, {self.dist_y}, {self.dist}, {self.zoom}')
+                  f' {self.heading_xy}, {self.heading_z}, {self.dist_xy}, {self.dist_z}, {self.dist}, {self.zoom}')
 
     def calculate_heading_directions(self):
         """
@@ -143,15 +143,15 @@ class Camera:
 
         # Calculate x, y, and z vectors
         x = math.sin(pre_led_heading_xy) * pre_led_dist_xy
-        z = pre_led_dist_z
         y = math.cos(pre_led_heading_xy) * pre_led_dist_xy
+        z = pre_led_dist_z
 
-        log.debug(f"Initially calculated data: "
-                  f"heading_xy {pre_led_heading_xy / pi_c} "
-                  f"heading_z {pre_led_heading_z / pi_c} "
-                  f"dist_xy {pre_led_dist_xy} "
-                  f"dist_x {x} "
-                  f"dist_y {y} "
+        log.debug(f"Initially calculated data:"
+                  f"heading_xy {pre_led_heading_xy / pi_c}"
+                  f"heading_z {pre_led_heading_z / pi_c}"
+                  f"dist_xy {pre_led_dist_xy}"
+                  f"dist_x {x}"
+                  f"dist_y {y}"
                   f"dist_z {z}")
 
         lead_time = self.config['camera']['lead']
@@ -164,16 +164,18 @@ class Camera:
 
         # Calculate new heading/distances based on new relative x, y, and z
         heading_xy = math.asin(x / math.sqrt(x ** 2 + y ** 2))
+        if pre_led_heading_xy > 0:
+            heading_xy = 180 - heading_xy  # Fix
         dist_xy = math.sqrt(x ** 2 + y ** 2)
         heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
         dist_z = z
 
-        log.debug(f"Data after camera lead of {lead_time}s: "
-                  f"heading_xz {heading_xy / pi_c} "
-                  f"heading_y {heading_z / pi_c} "
-                  f"dist_xz {dist_xy} "
-                  f"dist_x {x} "
-                  f"dist_y {y} "
+        log.debug(f"Data after camera lead of {lead_time}s:"
+                  f"heading_xy {heading_xy / pi_c}"
+                  f"heading_z {heading_z / pi_c}"
+                  f"dist_xy {dist_xy}"
+                  f"dist_x {x}"
+                  f"dist_y {y}"
                   f"dist_z {z}")
 
         return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
@@ -183,7 +185,7 @@ class Camera:
         A function to calculate the zoom for the camera.
         :return: the absolute distance to the drone, and the necessary zoom value
         """
-        dist = math.sqrt(self.dist_xz ** 2 + self.dist_y ** 2)
+        dist = math.sqrt(self.dist_xy ** 2 + self.dist_z ** 2)
         # Determine the maximum relative "size" of the drone relative to the camera
         max_dimension = max([i for i in [self.config['drone']['x'],
                                          self.config['drone']['y'],
@@ -217,20 +219,20 @@ class Camera:
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
-        if ((abs(self.current_pan - self.heading_xz))
+        if ((abs(self.current_pan - self.heading_xy))
                 > self.config['camera']['min_step'] or
-                (abs(self.current_tilt - self.heading_y)) > self.config['camera']['min_step'] or \
+                (abs(self.current_tilt - self.heading_z)) > self.config['camera']['min_step'] or
                 (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step'])):
 
-            log.info(f'moving to (p, t, z) {self.heading_xz + self.config["camera"]["offset"]},'
-                     f' {self.heading_y}, {self.zoom}')  # Show the position we move to
+            log.info(f'moving to (p, t, z) {self.heading_xy + self.config["camera"]["offset"]},'
+                     f' {self.heading_z}, {self.zoom}')  # Show the position we move to
 
             # Actually tell the camera to move
-            self.controller.absolute_move(self.heading_xz + self.config['camera']['offset'],
-                                          self.heading_y, self.zoom)
+            self.controller.absolute_move(self.heading_xy + self.config['camera']['offset'],
+                                          self.heading_z, self.zoom)
             # Update internal class data
-            self.current_pan = self.heading_xz
-            self.current_tilt = self.heading_y
+            self.current_pan = self.heading_xy
+            self.current_tilt = self.heading_z
             self.current_zoom = self.zoom
         else:  # We don't need to move the camera
             log.debug('Step is not significant enough to move the camera. ')
@@ -245,13 +247,13 @@ class Camera:
 
         if delay:  # Start a Timer
             self.deactivating = True
-            worker = threading.Timer(delay, self._deactivate_function)
+            worker = threading.Timer(delay, self._deactivate)
             worker.start()
             return worker
         else:
-            self._deactivate_function()  # Just deactivate the camera
+            self._deactivate()  # Just deactivate the camera
 
-    def _deactivate_function(self):
+    def _deactivate(self):
         """
         Force deactivate the camera. Should not be called by user.
         :return: none
