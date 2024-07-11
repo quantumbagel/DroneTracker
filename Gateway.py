@@ -56,11 +56,11 @@ class KafkaGateway:
                     log.info(f"Successfully received new status from Kafka server status={message.value}")
                     self.status = message.value
                     updated = True
-                    self.producer.send(self.output_topic, key=b"track_camera", value="success")
+                    self.producer.send(self.output_topic, key=b"track_camera", value=b"success")
                     continue
                 elif message.key == b"track_camera" and message.value not in VALID_STATUS:
                     log.error(f"Received invalid track_camera mode: {message.value}")
-                    self.producer.send(self.output_topic, key=b"track_camera", value="failure")
+                    self.producer.send(self.output_topic, key=b"track_camera", value=b"failure")
                     continue
                 elif message.key == b"list_recordings":
                     log.info("Received request for list of recordings, responding...")
