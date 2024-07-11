@@ -40,7 +40,7 @@ if __name__ == '__main__':
                            configuration["kafka"]["output_topic"],
                            configuration["camera"]["store_recordings"])
     drone = get_drone()
-    camera = Camera(configuration, actually_move=configuration["camera"]["actually_move"])  # Create camera
+    camera = Camera(configuration, actually_move=configuration["camera"]["move"])  # Create camera
     while True:
         logging.info("Now waiting for experiment...")
         gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])
