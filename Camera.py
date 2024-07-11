@@ -132,24 +132,24 @@ class Camera:
                 math.sin(first_lat) * math.cos(second_lat) * math.cos(second_lon - first_lon))
 
         # Calculate pan
-        pre_led_heading_xz = math.atan2(y, x)
+        pre_led_heading_xy = math.atan2(y, x)
 
-        # Calculate x/y way distances
-        pre_led_dist_xz = geodesic(camera_lat_long, [lat, long]).meters
-        pre_led_dist_y = alt - self.alt
+        # Calculate xy/z way distances
+        pre_led_dist_xy = geodesic(camera_lat_long, [lat, long]).meters
+        pre_led_dist_z = alt - self.alt
 
         # Calculate tilt
-        pre_led_heading_y = math.atan2(pre_led_dist_y, pre_led_dist_xz)
+        pre_led_heading_z = math.atan2(pre_led_dist_z, pre_led_dist_xy)
 
         # Calculate x, y, and z vectors
-        x = math.sin(pre_led_heading_xz) * pre_led_dist_xz
-        z = pre_led_dist_y
-        y = math.cos(pre_led_heading_xz) * pre_led_dist_xz
+        x = math.sin(pre_led_heading_xy) * pre_led_dist_xy
+        z = pre_led_dist_z
+        y = math.cos(pre_led_heading_xy) * pre_led_dist_xy
 
         log.debug(f"Initially calculated data: "
-                  f"heading_xz {pre_led_heading_xz / pi_c} "
-                  f"heading_y {pre_led_heading_y / pi_c} "
-                  f"dist_xz {pre_led_dist_xz} "
+                  f"heading_xy {pre_led_heading_xy / pi_c} "
+                  f"heading_z {pre_led_heading_z / pi_c} "
+                  f"dist_xy {pre_led_dist_xy} "
                   f"dist_x {x} "
                   f"dist_y {y} "
                   f"dist_z {z}")
@@ -159,30 +159,24 @@ class Camera:
         # Lead the camera (calculate new relative x, y, and z)
         # We do north/east/up, I guess DroneKit does north/east/down? This can be changed easily
         x += lead_time * vx
-        z += lead_time * - vz
         y += lead_time * vy
+        z += lead_time * - vz
 
         # Calculate new heading/distances based on new relative x, y, and z
-        heading_xz = math.acos(z / math.sqrt(x ** 2 + y ** 2))
-        dist_xz = math.sqrt(x ** 2 + y ** 2)
-        heading_y = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
-        dist_y = y
-
-        if not lead_time:  # TODO: fix and remove this bandaid (thx arcsin)
-            heading_xz = pre_led_heading_xz
-            heading_y = pre_led_heading_y
-            dist_xz = pre_led_dist_xz
-            dist_y = pre_led_dist_y
+        heading_xy = math.asin(x / math.sqrt(x ** 2 + y ** 2))
+        dist_xy = math.sqrt(x ** 2 + y ** 2)
+        heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
+        dist_z = z
 
         log.debug(f"Data after camera lead of {lead_time}s: "
-                  f"heading_xz {heading_xz / pi_c} "
-                  f"heading_y {heading_y / pi_c} "
-                  f"dist_xz {dist_xz} "
+                  f"heading_xz {heading_xy / pi_c} "
+                  f"heading_y {heading_z / pi_c} "
+                  f"dist_xz {dist_xy} "
                   f"dist_x {x} "
                   f"dist_y {y} "
                   f"dist_z {z}")
 
-        return heading_xz / pi_c, heading_y / pi_c, dist_xz, dist_y
+        return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
 
     def calculate_zoom(self):
         """
@@ -291,7 +285,7 @@ class Camera:
         if not deactivate_tilt:
             deactivate_tilt = self.current_tilt
         log.info(f'deactivating to (p, t) {deactivate_pan}, {deactivate_tilt}')
-        self.controller.absolute_move(deactivate_pan,
+        self.controller.absolute_move(deactivate_pan + self.config["camera"]["offset"],
                                       deactivate_tilt)  # Deactivate the camera
         # Update camera position
         self.current_pan = deactivate_pan
