@@ -218,17 +218,18 @@ class Camera:
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
+        offset_heading_xy = self.heading_xy + self.config["camera"]["offset"]
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
                 > self.config['camera']['min_step'] or
                 (abs(self.current_tilt - self.heading_z)) > self.config['camera']['min_step'] or
                 (abs(self.current_zoom - self.zoom) > self.config['camera']['min_zoom_step'])):
 
-            log.info(f'moving to (p, t, z) {self.heading_xy + self.config["camera"]["offset"]},'
+            log.info(f'moving to (p, t, z) {offset_heading_xy},'
                      f' {self.heading_z}, {self.zoom}')  # Show the position we move to
 
             # Actually tell the camera to move
-            self.controller.absolute_move(self.heading_xy + self.config['camera']['offset'],
+            self.controller.absolute_move(offset_heading_xy,
                                           self.heading_z, self.zoom)
             # Update internal class data
             self.current_pan = self.heading_xy
