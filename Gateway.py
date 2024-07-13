@@ -47,30 +47,38 @@ class KafkaGateway:
         if len(msg):  # is there new data?
             messages = msg[kafka.TopicPartition(self.command_topic, 0)]
             # Get deterministic list of recordings without subprocess
+
             if not os.path.exists(self.recording_storage_location):
                 os.makedirs(self.recording_storage_location)
             recordings = sorted([file for file in os.listdir(self.recording_storage_location)
                                  if file.endswith(".mkv")])
+
             for message in messages:
-                if message.key == b"track_camera" and message.value in VALID_STATUS:  # Ensure validity
+                if message.key == b"track_camera" and message.value in VALID_STATUS:
+                    # Track_camera command with valid mode
                     log.info(f"Successfully received new status from Kafka server status={message.value}")
                     self.status = message.value
                     updated = True
                     self.producer.send(self.output_topic, key=b"track_camera", value=b"success")
                     continue
+
                 elif message.key == b"track_camera" and message.value not in VALID_STATUS:
+                    # Track_camera command with invalid mode
                     log.error(f"Received invalid track_camera mode: {message.value}")
                     self.producer.send(self.output_topic, key=b"track_camera", value=b"failure")
                     continue
-                elif message.key == b"list_recordings":
+
+                elif message.key == b"list_recordings":  # Handle list_recording feature
                     log.info("Received request for list of recordings, responding...")
                     self.producer.send(self.output_topic, key=b"list_recordings",
                                        value='\n'.join(recordings).encode("utf-8"))
-                    self.producer.flush()
+                    self.producer.flush()  # Force send
                     continue
-                elif message.key == b"download_recording":
+
+                elif message.key == b"download_recording":  # Handle download_recording feature
                     log.info("Received request for download of recording {}, transferring file in separate thread...")
                     try:
+                        # Format: download_recording <recording number> <oeo_ip>
                         recording_num = int(message.value.split()[0])
                         oeo_server_ip = message.value.split()[1]
                     except IndexError or ValueError:
@@ -78,6 +86,10 @@ class KafkaGateway:
                         continue
 
                     def send_recording(identification):
+                        """
+                        Nested function to run the netcat command in a thread
+                        :param identification: the ID of the recording worker
+                        """
                         netcat = os.system(f"netcat -N {oeo_server_ip} {self.oeo_port} < {recordings[recording_num]}")
                         if netcat:
                             log.error("Failed to download recording, returning failure")
@@ -89,14 +101,15 @@ class KafkaGateway:
                                                value=f"success {recording_num}".encode("utf-8"))
                         self.export_threads.pop(identification)
 
+                    # Add a new recording worker to the poll
                     self.export_threads.update({len(self.export_threads):
-                                                    threading.Thread(target=send_recording,
-                                                                     args=[len(self.export_threads)])})
-                    self.export_threads[len(self.export_threads) - 1].start()
+                                                threading.Thread(target=send_recording,
+                                                                 args=[len(self.export_threads)])})
+                    self.export_threads[len(self.export_threads) - 1].start()  # Start the worker
                     continue
 
                 log.error(f"Received invalid message from Kafka server! message={message.key} / {message.value}."
-                          f" Ignoring message")
+                          f" Ignoring message")  # Invalid key from the server
         else:
             log.debug("No new data received from poll action.")  # We don't need to do anything, just return.
             # The most recent data is already saved
