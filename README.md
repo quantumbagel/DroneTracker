@@ -3,23 +3,20 @@
 *trigonometry, kafka, and drone tracking walk into a bar*
 
 
-### What's this?
+## What's this?
 This program controls AXIS cameras supporting [VAPIX](https://www.axis.com/vapix-library/) to track drones and record video of the drones.
 It has been customized for NC State's [AERPAW](https://aerpaw.org) program.
 
 
+### Program Stack
+<img src="img/DroneTrackerFlow.svg"></img>
 
 
 
-Its features include
-* Customizable recording triggers
-* Can zoom to fit drone in view or with a certain amount of space around it
-* Can handle drone software crashes or disconnects and quickly recover
-* Can support as many drones as you need via config
-* Works with any AXIS PTZ camera supporting VAPIX or any ArduPilot/MavLink based drone
-and many more!
 
 ### Configuration Options
+
+These options are all in `config.yml`.
 
 | Configuration Option                                          | Description                                                                                                                                                 |
 |---------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -45,7 +42,15 @@ and many more!
 | logs                                                          | The log level of the program. Valid options: "debug" "info" "warning" "error"                                                                               |
 
 
-##### Running
+### Utilities
+
+| Utility Purpose       | Description                                                                                                                                                                 |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `cameracontroller.py` | A simple test program that will attempt to connect to and control the camera using the keyboard.                                                                            |
+| `submit_info.py`      | A program to send a certain latitude, longitude and altitude to the camera a certain amount of times with a certain amount of delay in between each packet.                 |
+| `test_submit.py`      | A program that is the same as `submit_info.py`, except it sends close, random positions around the camera. You will need to manually edit the file to set these parameters. |
+
+### Running
 
 This program is designed to be run in a Dockerfile.
 
