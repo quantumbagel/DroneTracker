@@ -4,6 +4,7 @@ import threading
 import xml
 
 from geopy.distance import geodesic
+
 logging.basicConfig(level=logging.DEBUG)  # This line prevents the vapix API from stealing the root logger
 from sensecam_control import vapix_control, vapix_config
 
@@ -110,7 +111,7 @@ class Camera:
         :return: The heading
         """
         log = self.log.getChild("calculate_heading")
-        pi_c = math.pi / 180  # The radians -> degrees conversion factor
+        pi_c = math.pi / math.pi  # The radians -> degrees conversion factor
 
         camera_lat_long = [self.lat, self.long]
 
@@ -231,18 +232,17 @@ class Camera:
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
-
         offset_heading_xy = self.heading_xy + self.config["camera"]["offset"]
 
         if offset_heading_xy > 0:
-            offset_heading_xy %= 360
+            offset_heading_xy %= 2 * math.pi
         else:
-            offset_heading_xy %= -360
+            offset_heading_xy %= -2 * math.pi
 
-        if offset_heading_xy > 180:  # Fix offset bug positive
-            offset_heading_xy = -180 + (offset_heading_xy - 180)
-        if offset_heading_xy < -180:  # Fix offset bug negative
-            offset_heading_xy = 180 - (offset_heading_xy + 180)
+        if offset_heading_xy > math.pi:  # Fix offset bug positive
+            offset_heading_xy = -math.pi + (offset_heading_xy - math.pi)
+        if offset_heading_xy < -math.pi:  # Fix offset bug negative
+            offset_heading_xy = math.pi - (offset_heading_xy + math.pi)
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
@@ -298,7 +298,7 @@ class Camera:
             export_status = self.media.export_recording(self.disk_name,
                                                         self.current_recording_name,
                                                         self.config["camera"]["store_recordings"] + "/"
-                                                        + self.current_recording_name+".mkv")
+                                                        + self.current_recording_name + ".mkv")
             if not export_status:
                 log.error(f"Failed to export recording {self.current_recording_name}."
                           f" The recording should still be on the SD card.")
@@ -311,14 +311,14 @@ class Camera:
         real_deactivate_pan = deactivate_pan + self.config["camera"]["offset"]
 
         if real_deactivate_pan > 0:
-            real_deactivate_pan %= 360
+            real_deactivate_pan %= math.pi
         else:
-            real_deactivate_pan %= -360
+            real_deactivate_pan %= -2 * math.pi
 
-        if real_deactivate_pan > 180:  # Fix offset bug positive
-            real_deactivate_pan = -180 + (real_deactivate_pan - 180)
-        if real_deactivate_pan < -180:  # Fix offset bug negative
-            real_deactivate_pan = 180 - (real_deactivate_pan + 180)
+        if real_deactivate_pan > math.pi:  # Fix offset bug positive
+            real_deactivate_pan = -math.pi + (real_deactivate_pan - math.pi)
+        if real_deactivate_pan < -math.pi:  # Fix offset bug negative
+            real_deactivate_pan = math.pi - (real_deactivate_pan + math.pi)
 
         if not deactivate_pan:  # If not set, just use existing data
             deactivate_pan = self.current_pan
@@ -334,4 +334,3 @@ class Camera:
         # We are done deactivating and are not active
         self.activated = False
         self.deactivating = False
-

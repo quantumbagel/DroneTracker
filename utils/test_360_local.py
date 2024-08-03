@@ -58,13 +58,6 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
     y = math.cos(pre_led_heading_xy) * pre_led_dist_xy
     z = pre_led_dist_z
 
-    print(f"Initially calculated data: "
-              f"heading_xy {pre_led_heading_xy / pi_c} ")
-              # f"heading_z {pre_led_heading_z / pi_c} "
-              # f"dist_xy {pre_led_dist_xy} "
-              # f"dist_x {x} "
-              # f"dist_y {y} "
-              # f"dist_z {z}")
 
     lead_time = 0
 
@@ -82,7 +75,18 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
     heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
     dist_z = z
 
+    offset_heading_xy = heading_xy + 1 * pi_c
 
+    if offset_heading_xy > 0:
+        offset_heading_xy %= 360 * pi_c
+    else:
+        offset_heading_xy %= -360 * pi_c
+
+    if offset_heading_xy > 180 * pi_c:  # Fix offset bug positive
+        offset_heading_xy = -180 * pi_c + offset_heading_xy
+    if offset_heading_xy < -180 * pi_c:  # Fix offset bug negative
+        offset_heading_xy = 180 * pi_c - offset_heading_xy
+    print(heading_xy / pi_c, offset_heading_xy / pi_c)
     return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
 
 
@@ -94,7 +98,7 @@ delay = 0.1
 
 for i in points:
     t = time.time()
-    print(i[0] + lat, i[1] + long, alt)
+    #print(i[0] + lat, i[1] + long, alt)
     calculate_heading_directions(i[0] + lat, i[1] + long, alt, 0, 0, 0, lat, long, alt)
     delta = delay - (time.time()-t)
     if delta > 0:
