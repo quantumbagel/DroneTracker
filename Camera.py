@@ -231,7 +231,13 @@ class Camera:
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
-        offset_heading_xy = (self.heading_xy + self.config["camera"]["offset"]) % 360
+
+        offset_heading_xy = self.heading_xy + self.config["camera"]["offset"]
+
+        if offset_heading_xy > 0:
+            offset_heading_xy %= 360
+        else:
+            offset_heading_xy %= -360
 
         if offset_heading_xy > 180:  # Fix offset bug positive
             offset_heading_xy = -180 + offset_heading_xy
@@ -302,7 +308,13 @@ class Camera:
         deactivate_pan = self.config['camera']['deactivate_pos']['pan']
         deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
 
-        real_deactivate_pan = (deactivate_pan + self.config["camera"]["offset"])
+        real_deactivate_pan = deactivate_pan + self.config["camera"]["offset"]
+
+        if real_deactivate_pan > 0:
+            real_deactivate_pan %= 360
+        else:
+            real_deactivate_pan %= -360
+
         if real_deactivate_pan > 180:  # Fix offset bug positive
             real_deactivate_pan = -180 + real_deactivate_pan
         if real_deactivate_pan < -180:  # Fix offset bug negative
