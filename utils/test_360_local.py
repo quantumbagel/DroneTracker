@@ -18,7 +18,7 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
     A function to calculate the heading and distances, while also leading the camera.
     :return: The heading
     """
-    pi_c = math.pi / 180  # The radians -> degrees conversion factor
+    pi_c = math.pi / 180  # The deg -> radian conversion factor
 
     camera_lat_long = [camera_lat, camera_long]
 

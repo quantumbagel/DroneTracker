@@ -213,7 +213,7 @@ class Camera:
         log = self.log.getChild("move_camera")  # Get log handler
         self.drone_loc = drone_loc  # The new position of the drone
         self.update()  # Update our data about where we should go based on self.drone_loc
-
+        pi_c = math.pi / 180
         if not self.activated:
             while True:
                 # Start recording
@@ -232,19 +232,19 @@ class Camera:
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
-        offset_heading_xy = (self.heading_xy + self.config["camera"]["offset"]) * math.pi / 180
+        offset_heading_xy = (self.heading_xy + self.config["camera"]["offset"])
 
         if offset_heading_xy > 0:
-            offset_heading_xy %= 2 * math.pi
+            offset_heading_xy %= 360 * pi_c
         else:
-            offset_heading_xy %= -2 * math.pi
+            offset_heading_xy %= -360 * pi_c
 
-        if offset_heading_xy > math.pi:  # Fix offset bug positive
-            offset_heading_xy = -math.pi + offset_heading_xy
-        if offset_heading_xy < -math.pi:  # Fix offset bug negative
-            offset_heading_xy = math.pi - offset_heading_xy
+        if offset_heading_xy > 180 * pi_c:  # Fix offset bug positive
+            offset_heading_xy = -180 * pi_c + offset_heading_xy
+        if offset_heading_xy < -180 * pi_c:  # Fix offset bug negative
+            offset_heading_xy = 180 * pi_c - offset_heading_xy
 
-        offset_heading_xy *= 180 / math.pi
+        offset_heading_xy /= pi_c
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
