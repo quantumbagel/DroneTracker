@@ -297,3 +297,4 @@ class Camera:
         # We are done deactivating and are not active
         self.activated = False
         self.deactivating = False
+
