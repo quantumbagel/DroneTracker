@@ -19,7 +19,8 @@ delay = 0.1
 
 for i in points:
     t = time.time()
-    consumer.send("dronetracker-data", json.dumps({"position": {"latitude": points[0], "longitude": points[1],
+    consumer.send("dronetracker-data", json.dumps({"position": {"latitude": i[0] + lat,
+                                                                "longitude": i[1] + long,
                                                                 "altitude": alt},
                                                    "velocity": {"x": 0, "y": 0, "z": 0}}).encode("utf-8"))
     delta = delay - (time.time()-t)
