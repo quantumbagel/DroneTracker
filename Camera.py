@@ -1,6 +1,8 @@
 import logging
 import math
 import threading
+import xml
+
 from geopy.distance import geodesic
 logging.basicConfig(level=logging.DEBUG)  # This line prevents the vapix API from stealing the root logger
 from sensecam_control import vapix_control, vapix_config
@@ -126,6 +128,12 @@ class Camera:
         second_lat = lat * pi_c
         second_lon = long * pi_c
 
+        log.debug(f"Initially calculated data: "
+                  f"camera_lat {first_lat / pi_c} "
+                  f"camera_lon {first_lon / pi_c} "
+                  f"drone_lat {second_lat / pi_c} "
+                  f"drone_lon {second_lon / pi_c}")
+
         # Calculate y and x differential
         y = math.sin(second_lon - first_lon) * math.cos(second_lat)
         x = (math.cos(first_lat) * math.sin(second_lat)) - (
@@ -146,12 +154,12 @@ class Camera:
         y = math.cos(pre_led_heading_xy) * pre_led_dist_xy
         z = pre_led_dist_z
 
-        log.debug(f"Initially calculated data:"
-                  f"heading_xy {pre_led_heading_xy / pi_c}"
-                  f"heading_z {pre_led_heading_z / pi_c}"
-                  f"dist_xy {pre_led_dist_xy}"
-                  f"dist_x {x}"
-                  f"dist_y {y}"
+        log.debug(f"Initially calculated data: "
+                  f"heading_xy {pre_led_heading_xy / pi_c} "
+                  f"heading_z {pre_led_heading_z / pi_c} "
+                  f"dist_xy {pre_led_dist_xy} "
+                  f"dist_x {x} "
+                  f"dist_y {y} "
                   f"dist_z {z}")
 
         lead_time = self.config['camera']['lead']
@@ -170,12 +178,12 @@ class Camera:
         heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
         dist_z = z
 
-        log.debug(f"Data after camera lead of {lead_time}s:"
-                  f"heading_xy {heading_xy / pi_c}"
-                  f"heading_z {heading_z / pi_c}"
-                  f"dist_xy {dist_xy}"
-                  f"dist_x {x}"
-                  f"dist_y {y}"
+        log.debug(f"Data after camera lead of {lead_time}s: "
+                  f"heading_xy {heading_xy / pi_c} "
+                  f"heading_z {heading_z / pi_c} "
+                  f"dist_xy {dist_xy} "
+                  f"dist_x {x} "
+                  f"dist_y {y} "
                   f"dist_z {z}")
 
         return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
@@ -208,17 +216,28 @@ class Camera:
         if not self.activated:
             while True:
                 # Start recording
-                rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
-                if out == 1:
-                    log.error(f'failed to start recording! error: {rc_name}')
+                try:
+                    rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
+                    if out == 1:
+                        log.error(f'failed to start recording! error: {rc_name}')
+                        continue
+                except xml.parsers.expat.ExpatError:
+                    log.error("XML parsing error! Failed to start recording")
                     continue
+
                 self.current_recording_name = rc_name  # Keep track of the recording name for management purposes
                 break
 
             self.activated = True  # Camera is now "active"
             log.info(f"Successfully started recording! id: {self.current_recording_name}")  # Inform the current rec ID
 
-        offset_heading_xy = self.heading_xy + self.config["camera"]["offset"]
+        offset_heading_xy = (self.heading_xy + self.config["camera"]["offset"]) % 360
+
+        if offset_heading_xy > 180:  # Fix offset bug positive
+            offset_heading_xy = -180 + offset_heading_xy
+        if offset_heading_xy < -180:  # Fix offset bug negative
+            offset_heading_xy = 180 - offset_heading_xy
+
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
                 > self.config['camera']['min_step'] or
@@ -283,12 +302,18 @@ class Camera:
         deactivate_pan = self.config['camera']['deactivate_pos']['pan']
         deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
 
+        real_deactivate_pan = (deactivate_pan + self.config["camera"]["offset"])
+        if real_deactivate_pan > 180:  # Fix offset bug positive
+            real_deactivate_pan = -180 + real_deactivate_pan
+        if real_deactivate_pan < -180:  # Fix offset bug negative
+            real_deactivate_pan = 180 - real_deactivate_pan
+
         if not deactivate_pan:  # If not set, just use existing data
             deactivate_pan = self.current_pan
         if not deactivate_tilt:
             deactivate_tilt = self.current_tilt
         log.info(f'deactivating to (p, t) {deactivate_pan}, {deactivate_tilt}')
-        self.controller.absolute_move(deactivate_pan + self.config["camera"]["offset"],
+        self.controller.absolute_move(real_deactivate_pan,
                                       deactivate_tilt)  # Deactivate the camera
         # Update camera position
         self.current_pan = deactivate_pan
