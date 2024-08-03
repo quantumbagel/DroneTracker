@@ -240,9 +240,9 @@ class Camera:
             offset_heading_xy %= -360
 
         if offset_heading_xy > 180:  # Fix offset bug positive
-            offset_heading_xy = -180 + offset_heading_xy
+            offset_heading_xy = -180 + (offset_heading_xy - 180)
         if offset_heading_xy < -180:  # Fix offset bug negative
-            offset_heading_xy = 180 - offset_heading_xy
+            offset_heading_xy = 180 - (offset_heading_xy + 180)
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
@@ -316,9 +316,9 @@ class Camera:
             real_deactivate_pan %= -360
 
         if real_deactivate_pan > 180:  # Fix offset bug positive
-            real_deactivate_pan = -180 + real_deactivate_pan
+            real_deactivate_pan = -180 + (real_deactivate_pan - 180)
         if real_deactivate_pan < -180:  # Fix offset bug negative
-            real_deactivate_pan = 180 - real_deactivate_pan
+            real_deactivate_pan = 180 - (real_deactivate_pan + 180)
 
         if not deactivate_pan:  # If not set, just use existing data
             deactivate_pan = self.current_pan
