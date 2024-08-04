@@ -1,6 +1,7 @@
 import logging
 import math
 import threading
+import time
 import xml
 
 from geopy.distance import geodesic
@@ -221,9 +222,11 @@ class Camera:
                     rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
                     if out == 1:
                         log.error(f'failed to start recording! error: {rc_name}')
+                        time.sleep(1)
                         continue
                 except xml.parsers.expat.ExpatError:
                     log.error("XML parsing error! Failed to start recording")
+                    time.sleep(1)
                     continue
 
                 self.current_recording_name = rc_name  # Keep track of the recording name for management purposes
