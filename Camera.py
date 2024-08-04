@@ -112,7 +112,7 @@ class Camera:
         :return: The heading
         """
         log = self.log.getChild("calculate_heading")
-        pi_c = math.pi / math.pi  # The radians -> degrees conversion factor
+        pi_c = math.pi / 180  # The radians -> degrees conversion factor
 
         camera_lat_long = [self.lat, self.long]
 
@@ -214,19 +214,12 @@ class Camera:
         log = self.log.getChild("move_camera")  # Get log handler
         self.drone_loc = drone_loc  # The new position of the drone
         self.update()  # Update our data about where we should go based on self.drone_loc
-        pi_c = math.pi / 180
         if not self.activated:
             while True:
                 # Start recording
-                try:
-                    rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
-                    if out == 1:
-                        log.error(f'failed to start recording! error: {rc_name}')
-                        time.sleep(1)
-                        continue
-                except xml.parsers.expat.ExpatError:
-                    log.error("XML parsing error! Failed to start recording")
-                    time.sleep(1)
+                rc_name, out = self.media.start_recording(self.disk_name, profile=self.profile_name)
+                if out == 1:
+                    log.error(f'failed to start recording! error: {rc_name}')
                     continue
 
                 self.current_recording_name = rc_name  # Keep track of the recording name for management purposes

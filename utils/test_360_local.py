@@ -90,7 +90,6 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
     return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
 
 
-
 n = 100
 r = 0.01
 points = [(math.cos(2*math.pi/n*x)*r,math.sin(2*math.pi/n*x)*r) for x in range(0,n+1)]
