@@ -235,16 +235,15 @@ class Camera:
         offset_heading_xy = (self.heading_xy + self.config["camera"]["offset"])
 
         if offset_heading_xy > 0:
-            offset_heading_xy %= 360 * pi_c
+            offset_heading_xy %= 360
         else:
-            offset_heading_xy %= -360 * pi_c
+            offset_heading_xy %= -360
 
-        if offset_heading_xy > 180 * pi_c:  # Fix offset bug positive
-            offset_heading_xy = -180 * pi_c + offset_heading_xy
-        if offset_heading_xy < -180 * pi_c:  # Fix offset bug negative
-            offset_heading_xy = 180 * pi_c - offset_heading_xy
+        if offset_heading_xy > 180:  # Fix offset bug positive
+            offset_heading_xy = -180 + offset_heading_xy
+        if offset_heading_xy < -180:  # Fix offset bug negative
+            offset_heading_xy = 180 - offset_heading_xy
 
-        offset_heading_xy /= pi_c
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
