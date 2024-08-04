@@ -69,8 +69,10 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
 
     # Calculate new heading/distances based on new relative x, y, and z
     heading_xy = math.asin(x / math.sqrt(x ** 2 + y ** 2))
-    if pre_led_heading_xy > 0:
+    if pre_led_heading_xy > math.pi/2:
         heading_xy = math.pi - heading_xy  # Fix
+    if pre_led_heading_xy < -math.pi/2:
+        heading_xy = -math.pi - heading_xy
     dist_xy = math.sqrt(x ** 2 + y ** 2)
     heading_z = math.asin(z / math.sqrt(x ** 2 + y ** 2 + z ** 2))
     dist_z = z
@@ -86,14 +88,14 @@ def calculate_heading_directions(drone_lat, drone_long, drone_alt, drone_vx, dro
         offset_heading_xy = -180 * pi_c + offset_heading_xy
     if offset_heading_xy < -180 * pi_c:  # Fix offset bug negative
         offset_heading_xy = 180 * pi_c - offset_heading_xy
-    print(heading_xy / pi_c, offset_heading_xy / pi_c)
+    print(pre_led_heading_xy / pi_c, heading_xy / pi_c, (pre_led_heading_xy - heading_xy) / pi_c, offset_heading_xy / pi_c)
     return heading_xy / pi_c, heading_z / pi_c, dist_xy, dist_z
 
 
 n = 100
 r = 0.01
 points = [(math.cos(2*math.pi/n*x)*r,math.sin(2*math.pi/n*x)*r) for x in range(0,n+1)]
-delay = 0.1
+delay = 0
 
 for i in points:
     t = time.time()
