@@ -1,8 +1,7 @@
 import logging
 import math
 import threading
-import time
-import xml
+
 
 from geopy.distance import geodesic
 
