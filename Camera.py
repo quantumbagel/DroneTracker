@@ -238,9 +238,9 @@ class Camera:
             offset_heading_xy %= -360
 
         if offset_heading_xy > 180:  # Fix offset bug positive
-            offset_heading_xy = -180 + offset_heading_xy
+            offset_heading_xy = -360 + offset_heading_xy
         if offset_heading_xy < -180:  # Fix offset bug negative
-            offset_heading_xy = 180 - offset_heading_xy
+            offset_heading_xy = 360 - offset_heading_xy
 
 
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
