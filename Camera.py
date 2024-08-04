@@ -242,7 +242,6 @@ class Camera:
         if offset_heading_xy < -180:  # Fix offset bug negative
             offset_heading_xy = 360 - offset_heading_xy
 
-
         # Check if either of the pan, tilt, or zoom is greater than their respective minimum steps
         if ((abs(self.current_pan - self.heading_xy))
                 > self.config['camera']['min_step'] or
@@ -307,19 +306,17 @@ class Camera:
         deactivate_pan = self.config['camera']['deactivate_pos']['pan']
         deactivate_tilt = self.config['camera']['deactivate_pos']['tilt']
 
-        real_deactivate_pan = (deactivate_pan + self.config["camera"]["offset"]) * (math.pi / 180)
+        real_deactivate_pan = deactivate_pan + self.config["camera"]["offset"]
 
         if real_deactivate_pan > 0:
-            real_deactivate_pan %= 2 * math.pi
+            real_deactivate_pan %= 360
         else:
-            real_deactivate_pan %= -2 * math.pi
+            real_deactivate_pan %= -360
 
-        if real_deactivate_pan > math.pi:  # Fix offset bug positive
-            real_deactivate_pan = -math.pi + real_deactivate_pan
-        if real_deactivate_pan < -math.pi:  # Fix offset bug negative
-            real_deactivate_pan = math.pi - real_deactivate_pan
-
-        real_deactivate_pan *= 180 / math.pi
+        if real_deactivate_pan > 180:  # Fix offset bug positive
+            real_deactivate_pan = -360 + real_deactivate_pan
+        if real_deactivate_pan < -180:  # Fix offset bug negative
+            real_deactivate_pan = 360 - real_deactivate_pan
 
         if not deactivate_pan:  # If not set, just use existing data
             deactivate_pan = self.current_pan
