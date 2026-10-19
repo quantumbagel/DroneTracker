@@ -1,0 +1,3 @@
+-r requirements.txt
+pytest>=8
+keyboard  # utils/cameracontroller.py only

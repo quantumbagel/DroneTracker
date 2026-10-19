@@ -1,8 +1,4 @@
-numpy==1.25.1
-scipy==1.11.1
-geopy~=2.3.0
-ruamel.yaml
-pyserial~=3.5
-sensecam-control @ git+https://github.com/quantumbagel/sensecam-control-record@master
-xmltodict
-kafka-python
+kafka-python~=2.3.2
+numpy>=2.2,<3
+requests>=2.32,<3
+ruamel.yaml>=0.18,<0.20

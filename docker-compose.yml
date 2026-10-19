@@ -1,23 +1,23 @@
 services:
   dronetracker:
     image: dronetracker-aerpaw:latest
-    volumes:
-      - recording_storage:/opt/DroneTracker/recordings
     container_name: dronetracker
     build:
       context: .
       network: host
-    privileged: true
-    network_mode: 'host'
+    network_mode: host
+    restart: unless-stopped
+    stop_grace_period: 2m  # Time to stop and export the current recording on shutdown
+    environment:
+      - DRONETRACKER_CAMERA_USERNAME
+      - DRONETRACKER_CAMERA_PASSWORD
+    volumes:
+      - ./config.yml:/opt/DroneTracker/config.yml:ro  # Edit config without rebuilding; restart to apply
+      - recording_storage:/opt/DroneTracker/recordings
 volumes:
   recording_storage:
     driver: local
     driver_opts:
       type: none
+      o: bind
       device: /opt/DroneTracker/recordings
-networks:
-  app:
-    driver: bridge
-  outer-world:
-    ipam:
-      driver: default

@@ -1,38 +1,69 @@
+# DroneTracker v2 configuration. Every option is described in the README; anything omitted uses its default.
+logs: info  # debug, info, warning, or error
+
 camera:
-  alt: 85.763 # camera alt (meters above sea level)
-  lat: 35.727481 # can be decimal int, string, or degrees copied from Google Maps (format 35  45'31.2"N or 78  53'59.5"W)
-  long: -78.695925
-  offset: 51.733814668 #-32.5  # the offset in degrees from north (facing west would be 90, south 180, and east 270)
-  deactivate_pos:  # This example will make the camera look straight down without panning it.
-    pan: 0 # the pan to go to when the camera deactivates (0 is no pan change)
-    tilt: -90 # the tilt to go to when the camera deactivates (0 is no tilt change)
-  min_step: 4
-  min_zoom_step: 2000 # the minimum change in zoom to update the ptz in pan steps, which run from 0 to 9999 linearly
-  delay: 10 # the delay after the activate_method detects a deactivation for the camera to stop recording.
-  maximum_zoom: 31 # the maximum zoom of the camera (31x for the Q8615-e I'm using)
-  zoom_error: 1.2 # the amount of error (1.2 would be 20% extra FOV, 0.8 would be 20% less)
-  lead: 0 # The number of seconds to lead the drone by
-  move: true  # Whether the camera should move or not
-  store_recordings: "recordings"  # The path to store the recordings in
-  stop_recording_after: 5  # After <x> seconds from the last packet sent in Kafka to kafka/data_topic, stop recording and deactivate
-drone:
-  x: 3 # size (in meters, relative to front of drone)
-  y: 4
-  z: 5
-scale: # at 1x zoom
-  dist: 0.7239 # at x meters away from the camera... (calculated for q8615-e)
-  width: 0.889 # its viewing angle is x meters wide
-camera_login:
-  ip: "192.168.60.101" # the ip of the camera
-  username: "" # the username of the camera
-  password: "" # the password of the camera
-kafka:
-  ip: "192.168.60.202"
-  data_topic: "dronetracker-data"
-  command_topic: "dronetracker-command"
-  output_topic: "dronetracker-output"
+  ip: "192.168.60.101"
+  username: ""  # or set DRONETRACKER_CAMERA_USERNAME
+  password: ""  # or set DRONETRACKER_CAMERA_PASSWORD
+  simulate: false  # true: use a simulated camera (no hardware needed)
+  lat: 35.727481  # lens position; decimal degrees or Google Maps style 35°43'38.9"N
+  lon: -78.695925
+  alt: 85.763  # lens altitude, metres above mean sea level
+  offset: 51.733814668  # the camera pan (deg) that looks at true north: pan = azimuth + offset
+  tilt_limits: [-90, 45]  # the camera's mechanical tilt range (check your model's datasheet)
+  park:  # where to point when there's nothing to film
+    pan: null  # azimuth (deg from north), or null to leave the pan where it is
+    tilt: -90  # or null to leave the tilt where it is
+  park_after: 10  # seconds idle before parking
+  disk: SD_DISK
+  zoom:
+    wide_hfov: 63.1  # horizontal FOV at 1x (Q8615-E calibration: 0.889 m wide at 0.7239 m)
+    max_zoom: 31
+    table: null  # optional measured [[zoom_step, hfov_deg], ...]; overrides the two values above
+  speed:
+    pan_max: 60  # deg/s at speed 100; replace with a measured table from utils/calibrate_speed.py
+    tilt_max: 60
+    pan_table: null
+    tilt_table: null
+
+site:
+  # Altitude (m MSL) that "rel" drone altitudes, and auto/min_height, are measured from: usually the takeoff point.
+  # The deployed v1 config used camera alt 9 with relative drone altitudes, which implies about 76.763 here. Verify!
+  ref_alt_msl: null
+
+control:
+  mode: velocity  # velocity (smooth continuous moves with feedback) or position (absolute moves)
   hz: 10
-logs: "debug" # "debug", "info", "warning" or "error"
+  lookahead: 0.2  # seconds between deciding a command and the camera acting on it
 
+auto:
+  startup_mode: auto  # off, on, or auto
+  activate_after: 2  # seconds a drone must qualify before filming starts
+  deactivate_after: 5  # seconds a drone must stop qualifying before filming stops
+  min_height: 3  # metres above site/ref_alt_msl (or the lens if that's unset) to count as airborne
+  max_range: 2000
+  min_elevation: -10
+  sector: null  # [from_az, to_az] clockwise: only film drones in this azimuth range
 
+framing:
+  drone_size: 1.0  # metres
+  target_fraction: 0.15  # fraction of the frame width a lone drone should fill
+  min_hfov: 4  # never zoom tighter than this (deg), as margin for calibration error; lower once the offset is proven
+  group: true  # frame several drones together when they fit
+  max_group_hfov: 40
+  priority: []  # drone ids, most important first
 
+recording:
+  enabled: true
+  dir: recordings
+  stop_after: 10  # seconds with nothing to film before the recording stops
+
+kafka:
+  servers: ["192.168.60.202:9092"]
+  data_topic: dronetracker-data
+  command_topic: dronetracker-command
+  output_topic: dronetracker-output
+
+ingest:
+  default_alt_ref: msl  # msl, or rel (relative to site/ref_alt_msl) for messages that don't say
+  legacy_velocity_frame: ned  # how to read v1 {x, y, z} velocities: ned, enu, or v1 (x=east, y=north, z=down)

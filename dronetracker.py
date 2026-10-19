@@ -1,71 +1,81 @@
-from ruamel.yaml import YAML
-import time
-from Drone import Drone
-from Camera import Camera
+"""DroneTracker entry point: python dronetracker.py [--config config.yml]"""
+import argparse
 import logging
+import signal
+import sys
+import threading
+import time
 
-from Gateway import KafkaGateway
-
-with open("config.yml") as config_file:
-    configuration = YAML().load(config_file)
-
-log_level = {"debug": 10, "info": 20, "warning": 30, "error": 40}[configuration['logs']]
-hertz_deactivated = configuration["kafka"]["hz"] == 0
-logging.basicConfig(level=log_level)
-logging.getLogger("kafka").setLevel(level=log_level)
+from tracker.config import ConfigError, load_config
 
 
-def get_drone():
-    """
-    Wait for the drone to come alive and connect to it. Assumes we are active
-    :return: the Drone
-    """
-    log = logging.getLogger('get_drone')
-    log.info('Waiting for drone...')
-    while True:
-        new_drone = Drone(connection=configuration["kafka"]["ip"], topic=configuration["kafka"]["data_topic"],
-                          timeout=configuration["camera"]["stop_recording_after"])
-        if new_drone.consumer is None:  # Drone consumer failed connection, so we will try again
-            log.info("Failed to connect to Kafka server! Trying again in 1 second...")
-            time.sleep(1)
-            continue
-        break
-    return new_drone
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Point an AXIS PTZ camera at drones reported over Kafka.")
+    parser.add_argument("--config", default="config.yml", help="path to the config file (default: config.yml)")
+    args = parser.parse_args(argv)
+
+    try:
+        cfg = load_config(args.config)
+    except (OSError, ConfigError) as error:
+        print(f"Config error: {error}", file=sys.stderr)
+        return 2
+
+    level = getattr(logging, cfg["logs"].upper())
+    logging.basicConfig(level=level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+    logging.getLogger("kafka").setLevel(max(level, logging.WARNING))
+    logging.getLogger("urllib3").setLevel(max(level, logging.INFO))
+    log = logging.getLogger("dronetracker")
+
+    # Imported after logging is configured, so no module can claim the root logger first
+    from tracker.app import App
+    from tracker.bus import KafkaBus
+    from tracker.camera import make_camera_factory
+
+    stop = threading.Event()
+
+    def request_stop(signum, _):
+        stop.set()
+        signal.signal(signum, signal.SIG_DFL)  # A second signal kills a slow shutdown
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, request_stop)
+
+    bus = KafkaBus(cfg["kafka"])
+    if not bus.connect(stop):
+        return 0
+    app = App(cfg, make_camera_factory(cfg), send=bus.send)
+    data_topic, command_topic = cfg["kafka"]["data_topic"], cfg["kafka"]["command_topic"]
+    period = 1 / cfg["control"]["hz"]
+    errors = 0
+    try:
+        while not stop.is_set():
+            started = time.monotonic()
+            try:
+                for topic, key, value in bus.poll():
+                    try:
+                        if topic == data_topic:
+                            app.on_data(key, value, time.time())
+                        elif topic == command_topic:
+                            app.on_command(key, value)
+                    except Exception:  # One bad message mustn't cost the rest of the batch
+                        log.exception(f"Error handling {topic} message {key!r}")
+                app.step(time.time())
+                errors = 0
+            except Exception:  # One bad tick shouldn't take down tracking; log it, make the camera safe, carry on
+                errors += 1
+                if errors == 1 or errors % 600 == 0:
+                    log.exception(f"Error in tracking loop ({errors} ticks in a row)")
+                app.stop_camera()
+            elapsed = time.monotonic() - started
+            if elapsed > period:
+                log.debug(f"Tick took {elapsed * 1000:.0f} ms, over the {period * 1000:.0f} ms budget")
+            stop.wait(max(0.0, period - elapsed))
+    finally:
+        log.info("Shutting down")
+        app.shutdown()
+        bus.close()
+    return 0
 
 
-active = False
-if __name__ == '__main__':
-    gateway = KafkaGateway(configuration["kafka"]["ip"],
-                           configuration["kafka"]["command_topic"],
-                           configuration["kafka"]["output_topic"],
-                           configuration["camera"]["store_recordings"])
-    drone = get_drone()
-    camera = Camera(configuration, actually_move=configuration["camera"]["move"])  # Create camera
-    while True:
-        logging.info("Now waiting for experiment...")
-        gateway.wait_for_status("on", hz=configuration["kafka"]["hz"])
-        logging.info("Experiment is ready!")
-        last_tick_active = False
-        while True:
-            start = time.time()
-            gateway.update()  # Update experiment status
-            if gateway.status == "off" and last_tick_active:  # Experiment is over
-                logging.error("We have been forcefully disabled by command action!")
-                camera.deactivate()  # Deactivate the camera
-                break  # Exit loop
-            if last_tick_active and not drone.most_recent:  # Drone hasn't received anything
-                logging.error("Packet timeout has occurred, deactivating")
-                camera.deactivate()  # Deactivate the camera
-                break  # Exit loop
-            drone.update()  # Update drone position/velocity data
-
-            if drone.most_recent:  # If we are active
-                last_tick_active = True
-                camera.move_camera([drone.lat, drone.long, drone.alt, drone.vx, drone.vy, drone.vz])
-            end = time.time()
-            if not hertz_deactivated:
-                delta = 1 / configuration["kafka"]["hz"] - (end - start)
-                if delta > 0:
-                    logging.debug(f"Now sleeping for {delta} seconds because of hertz: {configuration['kafka']['hz']}")
-                    time.sleep(delta)
-        drone.reset()
+if __name__ == "__main__":
+    sys.exit(main())
