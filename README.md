@@ -211,14 +211,14 @@ client (against canned responses), the commands, and full end-to-end simulations
 
 ## Changes from v1
 
-* **Config layout changed.** `kafka/ip` became `kafka/servers`. `kafka/hz` became `control/hz`. `camera/long`
+* Different configuration.`kafka/ip` became `kafka/servers`. `kafka/hz` became `control/hz`. `camera/long`
   became `camera/lon`. `camera_login/*` moved into `camera/`. `camera/lead`, `delay`, `min_step`,
   `min_zoom_step`, `zoom_error` and `maximum_zoom` and the `drone`/`scale` sections are replaced by
   `control/lookahead`, the `framing` options, and `camera/zoom`. `deactivate_pos` became `park`, and `null` now
   means "don't move this axis" (in v1, `pan: 0` actually turned the camera to face north).
-* **Behaviour.** The `off` command now works (v1 compared bytes with a string, so it was ignored). `on` persists
+* Different behavior. The `off` command now works (v1 compared bytes with a string, so it was ignored). `on` persists
   instead of ending at the first data gap. `auto` is implemented and is the default.
-* **Downloads.** Files are streamed by DroneTracker itself instead of shelling out to netcat. That fixes the broken
+* More reliable downloads. Files are streamed by DroneTracker itself instead of shelling out to netcat. That fixes the broken
   host and path handling and removes a shell-injection hole.
-* **Dependencies.** `sensecam-control` is no longer used. Its 401 handler called `sys.exit`, and it had no
+* Getting rid of dependency. `sensecam-control` is no longer used. Its 401 handler called `sys.exit`, and it had no
   timeouts or session reuse.
