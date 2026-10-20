@@ -18,12 +18,6 @@ def test_overhead_pass_does_not_crash(tmp_path):
     assert result["in_frame_pct"] > 80
 
 
-def test_v1_messages_still_track(tmp_path):
-    # v1 messages carry no timestamp, so their transit time shows up as lag unless default_latency covers it
-    result = run_simulation(make_config(tmp_path, ingest={"default_latency": 0.15}), "flyby", fmt="v1")
-    assert result["in_frame_pct"] >= 97
-
-
 def test_v2_is_smoother_than_v1_style_control(tmp_path):
     cfg = make_config(tmp_path)
     v2 = run_simulation(cfg, "orbit")

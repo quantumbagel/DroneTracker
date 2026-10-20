@@ -1,17 +1,15 @@
 """
-Parsing of drone position messages from the Kafka data topic.
+Parsing of drone position messages from the Kafka data topic:
 
-v2 message (preferred):
     {"drone_id": "uav1", "t": 1729300000.12,
      "position": {"latitude": 35.72, "longitude": -78.69, "altitude": 120.5, "alt_ref": "msl"},
      "velocity": {"north": 3.1, "east": -0.4, "down": 0.0}}
 
-v1 message (still accepted):
-    {"position": {"latitude": ..., "longitude": ..., "altitude": ...}, "velocity": {"x": ..., "y": ..., "z": ...}}
-    The v1 velocity axes are ambiguous, so they are interpreted per ingest/legacy_velocity_frame.
+v1 messages, whose velocity is {"x", "y", "z"} on ambiguous axes, are rejected.
 
 drone_id falls back to the Kafka message key, then to "default". t (epoch seconds or milliseconds), alt_ref,
-and velocity are optional.
+and velocity are optional. Without t, the Kafka record's timestamp stands in for it. An invalid velocity is ignored
+(with a warning), rather than costing a valid position.
 """
 import json
 import logging
@@ -43,14 +41,15 @@ def _finite(value, name):
 class MessageParser:
     def __init__(self, cfg):
         self.default_alt_ref = cfg["ingest"]["default_alt_ref"]
-        self.legacy_frame = cfg["ingest"]["legacy_velocity_frame"]
         self.max_clock_skew = cfg["ingest"]["max_clock_skew"]
         self.default_latency = cfg["ingest"]["default_latency"]
         self.ref_alt_msl = cfg["site"]["ref_alt_msl"]
         self._clock_warned = set()
+        self._velocity_warned = set()
 
-    def parse(self, key, value, received):
+    def parse(self, key, value, received, sent=None):
         """
+        :param sent: the Kafka record timestamp (epoch s), used as the measurement time when the body has no t
         :raises ValueError: if the message is not a valid position report
         """
         try:
@@ -61,7 +60,7 @@ class MessageParser:
             raise ValueError("missing 'position' object")
 
         drone_id = body.get("drone_id")
-        if drone_id is None and key:
+        if drone_id in (None, "") and key:
             drone_id = key.decode("utf-8", errors="replace") if isinstance(key, bytes) else key
         drone_id = str(drone_id) if drone_id not in (None, "") else "default"
 
@@ -73,6 +72,7 @@ class MessageParser:
             raise ValueError(f"position out of range: {lat}, {lon}")
 
         alt_ref = pos.get("alt_ref", body.get("alt_ref", self.default_alt_ref))
+        alt_ref = alt_ref.lower() if isinstance(alt_ref, str) else alt_ref
         if alt_ref == "rel":
             if self.ref_alt_msl is None:
                 raise ValueError("relative altitude received but site/ref_alt_msl is not configured")
@@ -80,22 +80,27 @@ class MessageParser:
         elif alt_ref != "msl":
             raise ValueError(f"unknown alt_ref {alt_ref!r}")
 
-        return Measurement(drone_id, self._measurement_time(drone_id, body.get("t"), received), received,
-                           lat, lon, alt, self._velocity(body.get("velocity")))
+        velocity = body.get("velocity")
+        if isinstance(velocity, dict) and not {"north", "east", "down"} & velocity.keys() \
+                and {"x", "y", "z"} & velocity.keys():
+            raise ValueError("v1 message (velocity {x, y, z}) is not supported; send velocity {north, east, down}")
+        try:
+            vel_ned = self._velocity(velocity)
+        except ValueError as error:
+            vel_ned = None
+            if drone_id not in self._velocity_warned:
+                self._velocity_warned.add(drone_id)
+                log.warning(f"Drone {drone_id}: ignoring invalid velocity ({error}); using its positions only")
+        t = body.get("t")
+        return Measurement(drone_id, self._measurement_time(drone_id, sent if t is None else t, received), received,
+                           lat, lon, alt, vel_ned)
 
     def _velocity(self, vel):
         if vel is None:
             return None
         if not isinstance(vel, dict):
             raise ValueError("velocity must be an object")
-        if "north" in vel or "east" in vel or "down" in vel:
-            return tuple(_finite(vel.get(k), f"velocity.{k}") for k in ("north", "east", "down"))
-        x, y, z = (_finite(vel.get(k), f"velocity.{k}") for k in ("x", "y", "z"))
-        if self.legacy_frame == "ned":
-            return x, y, z
-        if self.legacy_frame == "enu":
-            return y, x, -z
-        return y, x, z  # "v1": what v1 DroneTracker assumed (x east, y north, z down)
+        return tuple(_finite(vel.get(k), f"velocity.{k}") for k in ("north", "east", "down"))
 
     def _measurement_time(self, drone_id, t, received):
         """

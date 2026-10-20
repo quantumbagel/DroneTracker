@@ -57,6 +57,16 @@ def test_tilt_limit_is_respected(tmp_path):
     assert controller.commanded[1] == 0
 
 
+def test_shot_widens_while_the_target_is_beyond_the_tilt_range(tmp_path):
+    controller, camera, clock = setup(tmp_path, camera={"offset": 0.0, "tilt_limits": [-90, 45]})
+    assert controller.needed_hfov(aim(0, 40)) == 10.0
+    assert controller.needed_hfov(aim(0, 50)) == pytest.approx(10.0 + 2 * 5 * 16 / 9)
+    run(controller, clock, lambda t: aim(0, 50), 5)
+    position = camera.query_position()
+    # Still in the frame height although the camera can't tilt up to it
+    assert 50 - position.tilt < controller.optics.hfov(position.zoom) / (16 / 9) / 2
+
+
 def test_camera_failures_stop_motion_and_recover(tmp_path):
     controller, camera, clock = setup(tmp_path, camera={"offset": 0.0})
     run(controller, clock, lambda t: aim(90, 0), 0.5)
@@ -110,6 +120,7 @@ def test_position_mode(tmp_path):
     run(controller, clock, lambda t: aim(30, 10), 3)
     position = camera.query_position()
     assert (position.pan, position.tilt) == (pytest.approx(40, abs=0.1), pytest.approx(10, abs=0.1))
+    assert controller.status()["position"]["azimuth"] == pytest.approx(30, abs=0.1)  # For the session log
     commands = camera.commands
     run(controller, clock, lambda t: aim(30.2, 10), 1)  # Below min_step: no new command
     assert camera.commands == commands

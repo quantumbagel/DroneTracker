@@ -140,3 +140,32 @@ def test_recording_failure_is_reported_not_fatal(tmp_path):
     assert app.targets == ("uav1",)  # Still tracking
     camera.start_recording = original
     app.shutdown()
+
+
+def test_unexpected_recorder_error_does_not_end_recording_for_good(tmp_path):
+    app, clock, events, frame = build(tmp_path)
+    camera = app.controller.camera
+    original = camera.start_recording
+    camera.start_recording = lambda *args, **kwargs: (_ for _ in ()).throw(KeyError("surprise"))
+    fly(app, clock, frame, 4)
+    app.recorder.wait_idle()
+    camera.start_recording = original
+    idle(app, clock, 20)  # That session ends; the next one must still record
+    fly(app, clock, frame, 4)
+    app.recorder.wait_idle()
+    fly(app, clock, frame, 0.2)
+    assert types(events).count("session_started") == 2
+    assert "recording_failed" in types(events) and "recording_started" in types(events)
+    app.shutdown()
+
+
+def test_backlog_of_untimestamped_messages_uses_kafka_timestamps(tmp_path):
+    """A stalled tick delivers several messages without t at once; their Kafka timestamps keep the velocity right."""
+    app, clock, _, frame = build(tmp_path)
+    start = clock()
+    for i in range(60):  # 5 Hz at 20 m/s; the first 50 arrive promptly, the last 10 all at once after a 2 s stall
+        sent = start + i * 0.2
+        lat, lon, alt = frame.to_geodetic(np.array([20.0 * i * 0.2, 200, 40]))
+        value = json.dumps({"position": {"latitude": lat, "longitude": lon, "altitude": alt}}).encode()
+        app.on_data(b"uav1", value, max(sent, start + 59 * 0.2) if i >= 50 else sent, sent)
+    assert app.tracks.get("uav1").filter.velocity[0] == pytest.approx(20, abs=1)

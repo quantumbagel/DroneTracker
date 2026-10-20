@@ -1,8 +1,7 @@
 """
 Publish simulated drone positions to Kafka in real time, for testing a running DroneTracker end to end.
 
-    python utils/fake_drones.py pair                     # two drones, v2 messages
-    python utils/fake_drones.py orbit --format v1        # v1 messages, as older senders produce
+    python utils/fake_drones.py pair                     # two drones
     python utils/fake_drones.py --hover 35.7276 -78.6957 120 --seconds 30
 """
 import argparse
@@ -27,7 +26,6 @@ def main():
     parser.add_argument("--config", default=os.path.join(os.path.dirname(__file__), "..", "config.yml"))
     parser.add_argument("--hz", type=float, default=5.0, help="messages per second per drone")
     parser.add_argument("--noise", type=float, default=1.0, help="GPS noise, metres")
-    parser.add_argument("--format", choices=("v2", "v1"), default="v2")
     parser.add_argument("--hover", nargs=3, type=float, metavar=("LAT", "LON", "ALT_MSL"),
                         help="instead of a scenario, report one stationary drone here")
     parser.add_argument("--seconds", type=float, help="stop after this long (default: the scenario's length)")
@@ -58,7 +56,7 @@ def main():
         else:
             for drone in drones:
                 if drone.flying(now - start):
-                    key, value = make_message(drone, now - start, now, frame, rng, args.noise, args.format)
+                    key, value = make_message(drone, now - start, now, frame, rng, args.noise)
                     producer.send(cfg["kafka"]["data_topic"], key=key, value=value)
                     sent += 1
         print(f"\r{now - start:6.1f}s  {sent} messages sent", end="", flush=True)

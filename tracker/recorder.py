@@ -73,12 +73,17 @@ class Recorder:
             job, argument = self._jobs.get()
             if job == "close":
                 return
-            if job == "notify":
-                argument.set()
-            elif job == "start":
-                self._start(argument)
-            elif job == "stop":
-                self._stop()
+            try:
+                if job == "notify":
+                    argument.set()
+                elif job == "start":
+                    self._start(argument)
+                elif job == "stop":
+                    self._stop()
+            except Exception as error:  # Anything unexpected must not end recording for the rest of the run
+                log.exception(f"Recording job '{job}' failed")
+                self.events.put({"type": "recording_failed", "session": argument if job == "start" else self.session,
+                                 "error": str(error)})
 
     def _retry(self, action, description):
         for attempt in range(self.ATTEMPTS):
@@ -125,6 +130,14 @@ class Recorder:
             self._pending_exports.discard(future)
 
     def _export(self, session, recording_id):
+        try:
+            self._export_once(session, recording_id)
+        except Exception as error:  # The executor would otherwise swallow it silently
+            log.exception(f"Export of {recording_id} failed; it is still on the camera's {self.disk}")
+            self.events.put({"type": "export_failed", "session": session, "recording_id": recording_id,
+                             "error": str(error)})
+
+    def _export_once(self, session, recording_id):
         if not hasattr(self._export_camera, "camera"):
             self._export_camera.camera = self.camera_factory()
         camera = self._export_camera.camera

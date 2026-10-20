@@ -35,6 +35,20 @@ def measure(camera, axis, units, seconds, direction):
     return abs(moved) / (t1 - t0)
 
 
+def monotonic(rows, axis):
+    """
+    Drop measurements that aren't faster than the one before (the camera not moving at all at the lowest speeds,
+    or measurement noise), since camera/speed tables must increase.
+    """
+    kept = []
+    for units, rate in rows:
+        if rate > (kept[-1][1] if kept else 0.0):
+            kept.append([units, rate])
+        else:
+            print(f"Leaving {axis} speed {units} ({rate} deg/s) out of the table: not faster than the speed below it")
+    return kept
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=os.path.join(os.path.dirname(__file__), "..", "config.yml"))
@@ -60,7 +74,7 @@ def main():
             rows.append([units, round(rate, 3)])
             print(f"{axis} speed {units:3}: {rate:7.3f} deg/s")
             direction = -direction
-        tables[axis] = rows
+        tables[axis] = monotonic(rows, axis)
 
     print("\nPaste into config.yml under camera/speed:")
     for axis in ("pan", "tilt"):

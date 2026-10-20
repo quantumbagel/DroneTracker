@@ -51,10 +51,10 @@ def main(argv=None):
         while not stop.is_set():
             started = time.monotonic()
             try:
-                for topic, key, value in bus.poll():
+                for topic, key, value, sent in bus.poll():
                     try:
                         if topic == data_topic:
-                            app.on_data(key, value, time.time())
+                            app.on_data(key, value, time.time(), sent)
                         elif topic == command_topic:
                             app.on_command(key, value)
                     except Exception:  # One bad message mustn't cost the rest of the batch

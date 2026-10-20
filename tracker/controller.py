@@ -46,6 +46,7 @@ class PTZController:
         self.kz = ctl["kz"]
         self.zoom_deadband = ctl["zoom_deadband"]
         self.min_step = ctl["min_step"]
+        self.aspect = cfg["framing"]["aspect"]
 
         self.position = None  # Last PTZPosition read from the camera
         self.error = None  # Last (azimuth, elevation) pointing error, deg
@@ -98,13 +99,21 @@ class PTZController:
         if command != self.commanded:
             self._send_speeds(command)
 
+    def needed_hfov(self, aim):
+        """
+        The field of view the aim needs. When the target is beyond the tilt range the camera can only get as close
+        as the limit, so the shot widens by the shortfall to keep the target in the frame for as long as possible.
+        """
+        shortfall = abs(aim.el - _clamp(aim.el, self.tilt_min, self.tilt_max))
+        return min(max(aim.hfov + 2 * shortfall * self.aspect, self.optics.min_hfov), self.optics.max_hfov)
+
     def _zoom_speed(self, aim, pos):
         """
         Continuous zoom speed towards the needed field of view. The error is the log of the FOV ratio, since a
         given step change matters far more at the wide end. Zooming out (a drone may be leaving the frame) reacts
         almost immediately; zooming in waits until the shot is zoom_deadband too wide, so the zoom doesn't hunt.
         """
-        needed = min(max(aim.hfov, self.optics.min_hfov), self.optics.max_hfov)
+        needed = self.needed_hfov(aim)
         error = math.log(needed / self.optics.hfov(pos.zoom))  # > 0: too tight, zoom out
         if -math.log1p(self.zoom_deadband) < error < ZOOM_OUT_DEADBAND:
             return 0
@@ -116,9 +125,10 @@ class PTZController:
         return math.copysign(self.kp * excess, error) if excess > 0 else 0.0
 
     def _track_position(self, aim):
+        self.position = self.camera.query_position()  # Only for status and the session log
         pan = self.camera_pan(aim.az)
         tilt = _clamp(aim.el, self.tilt_min, self.tilt_max)
-        zoom = self.optics.step_for_hfov(aim.hfov)
+        zoom = self.optics.step_for_hfov(self.needed_hfov(aim))
         rate = self.pan_speed.max_rate
         if self.last_absolute is not None:
             last_pan, last_tilt, last_zoom = self.last_absolute

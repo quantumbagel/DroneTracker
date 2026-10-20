@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 import pytest
 
@@ -104,17 +102,14 @@ def test_position_jump_restarts_filter(tmp_path):
     assert tracks.get("uav1").filter.position == pytest.approx([500, 500, 40], abs=0.01)
 
 
-def test_swapped_velocity_axes_are_detected(tmp_path, caplog):
+def test_prediction_holds_still_past_max_extrapolation(tmp_path):
     tracks, frame = manager(tmp_path)
-    with caplog.at_level(logging.WARNING):
-        for i in range(60):  # Flying east at 10 m/s but reporting the velocity as if north
-            t = T0 + i * 0.2
-            tracks.ingest(measurement_at(frame, (10 * i * 0.2, 200, 40), t, vel_ned=(10, 0, 0)))
-    assert not tracks.get("uav1").use_velocity
-    assert "axes look swapped" in caplog.text
+    feed(tracks, frame, AIRBORNE, T0, T0 + 5, vel=(10, 0, 0))
+    track = tracks.get("uav1")
+    last = track.filter.t
+    _, vel, _ = track.state_at(last + 1.0)
+    assert vel[0] == pytest.approx(10, abs=1)
+    pos, vel, _ = track.state_at(last + 3.0)
+    assert np.allclose(vel, 0)  # Else the camera keeps panning at the old rate while aiming at a fixed point
+    assert pos == pytest.approx(track.state_at(last + 2.0)[0])
 
-
-def test_correct_velocities_are_kept(tmp_path):
-    tracks, frame = manager(tmp_path)
-    feed(tracks, frame, AIRBORNE, T0, T0 + 12, vel=(10, 0, 2))
-    assert tracks.get("uav1").use_velocity

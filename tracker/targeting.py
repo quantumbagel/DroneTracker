@@ -45,30 +45,37 @@ def view_track(track, t, drone_size):
 
 
 def frame(views, framing):
-    """Compute an Aim that holds every view in shot."""
+    """
+    Compute an Aim that holds every view in shot. The uncertainty margin is added in both directions, so a drone
+    that's off-centre vertically stays in the (shorter) frame height too.
+    """
     k = framing["uncertainty_k"]
+    aspect = framing["aspect"]
     margin = 2 * k * max(v.uncertainty for v in views)
+    # Never tighter than the largest drone would get on its own
+    lone = max(max(v.size / framing["target_fraction"] + margin, (v.size + margin) * aspect) for v in views)
     if len(views) == 1:
         v = views[0]
-        return Aim((v.drone_id,), v.az, v.el, v.az_rate, v.el_rate,
-                   max(v.size / framing["target_fraction"] + margin, framing["min_hfov"]), v.range)
+        return Aim((v.drone_id,), v.az, v.el, v.az_rate, v.el_rate, max(lone, framing["min_hfov"]), v.range)
 
     # Azimuths relative to the first view, so the spread is computed correctly across the ±180° seam
     base = views[0].az
     rel = [wrap180(v.az - base) for v in views]
-    az_lo = min(r - v.size / 2 for r, v in zip(rel, views))
-    az_hi = max(r + v.size / 2 for r, v in zip(rel, views))
-    el_lo = min(v.el - v.size / 2 for v in views)
-    el_hi = max(v.el + v.size / 2 for v in views)
+    left = min(range(len(views)), key=lambda i: rel[i] - views[i].size / 2)
+    right = max(range(len(views)), key=lambda i: rel[i] + views[i].size / 2)
+    bottom = min(views, key=lambda v: v.el - v.size / 2)
+    top = max(views, key=lambda v: v.el + v.size / 2)
+    az_lo, az_hi = rel[left] - views[left].size / 2, rel[right] + views[right].size / 2
+    el_lo, el_hi = bottom.el - bottom.size / 2, top.el + top.size / 2
     el_center = (el_lo + el_hi) / 2
     # Azimuth differences shrink in the image as the camera looks up
     width = (az_hi - az_lo) * math.cos(math.radians(min(abs(el_center), 89.0)))
     height = el_hi - el_lo
-    spread = max(width, height * framing["aspect"]) / framing["group_fill"]
-    # Never tighter than the largest drone would get on its own
-    hfov = max(max(spread, max(v.size for v in views) / framing["target_fraction"]) + margin, framing["min_hfov"])
+    fill = framing["group_fill"]
+    hfov = max(width / fill + margin, (height / fill + margin) * aspect, lone, framing["min_hfov"])
+    # The shot's centre moves at the mean rate of the drones that define its edges
     return Aim(tuple(v.drone_id for v in views), wrap180(base + (az_lo + az_hi) / 2), el_center,
-               sum(v.az_rate for v in views) / len(views), sum(v.el_rate for v in views) / len(views),
+               (views[left].az_rate + views[right].az_rate) / 2, (bottom.el_rate + top.el_rate) / 2,
                hfov, min(v.range for v in views))
 
 

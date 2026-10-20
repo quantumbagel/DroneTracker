@@ -26,9 +26,18 @@ class FakeConsumer:
 class FakeProducer:
     def __init__(self, **config):
         self.sent = []
+        self.unblocked = threading.Event()
+        self.unblocked.set()
 
     def send(self, topic, key, value):
+        self.unblocked.wait()  # The real send() blocks for up to a minute while it has no metadata for the topic
         self.sent.append((topic, key, value))
+
+    def flush(self, timeout):
+        pass
+
+    def close(self, timeout):
+        pass
 
 
 def test_connect_retries_through_refusals_and_outages(monkeypatch):
@@ -60,9 +69,27 @@ def test_poll_reads_every_partition_in_time_order(monkeypatch):
     bus = KafkaBus(KAFKA)
     bus.connect(threading.Event())
     # v1 only read partition 0 and only its last message
-    bus.consumer.batches = {"data-0": [Record("data", b"a", b"1", 10), Record("data", b"a", b"2", 30)],
-                            "data-1": [Record("data", b"b", b"3", 20)],
-                            "cmd-0": [Record("cmd", b"status", b"", 25)]}
-    assert bus.poll() == [("data", b"a", b"1"), ("data", b"b", b"3"), ("cmd", b"status", b""), ("data", b"a", b"2")]
+    bus.consumer.batches = {"data-0": [Record("data", b"a", b"1", 10_000), Record("data", b"a", b"2", 30_000)],
+                            "data-1": [Record("data", b"b", b"3", 20_000)],
+                            "cmd-0": [Record("cmd", b"status", b"", 25_000)],
+                            "cmd-1": [Record("cmd", b"status", b"", -1)]}  # -1: the record has no timestamp
+    assert bus.poll() == [("cmd", b"status", b"", None), ("data", b"a", b"1", 10.0), ("data", b"b", b"3", 20.0),
+                          ("cmd", b"status", b"", 25.0), ("data", b"a", b"2", 30.0)]
     bus.send(b"event", b"{}")
+    bus.close()
     assert bus.producer.sent == [("out", b"event", b"{}")]
+
+
+def test_send_never_blocks_the_caller(monkeypatch):
+    monkeypatch.setattr(bus_module, "KafkaConsumer", FakeConsumer)
+    monkeypatch.setattr(bus_module, "KafkaProducer", FakeProducer)
+    bus = KafkaBus(KAFKA)
+    bus.connect(threading.Event())
+    bus.producer.unblocked.clear()  # Broker unreachable
+    for i in range(bus_module.SEND_QUEUE + 10):  # Overflow is dropped, not waited for
+        bus.send(b"event", str(i).encode())
+    assert bus.producer.sent == []
+    bus.producer.unblocked.set()
+    bus.close()
+    assert bus.producer.sent[0] == ("out", b"event", b"0")
+    assert len(bus.producer.sent) >= bus_module.SEND_QUEUE

@@ -86,7 +86,6 @@ DEFAULTS = {
     },
     "ingest": {
         "default_alt_ref": "msl",
-        "legacy_velocity_frame": "ned",
         "max_clock_skew": 2.0,
         "default_latency": 0.0,
     },
@@ -246,6 +245,8 @@ def _validate(cfg):
     auto["max_range"] = _number(auto["max_range"], "auto/max_range", positive=True, optional=True)
     auto["min_elevation"] = _number(auto["min_elevation"], "auto/min_elevation", -90, 90, optional=True)
     auto["sector"] = _pair(auto["sector"], "auto/sector", optional=True)
+    if auto["sector"] is not None and auto["sector"][1] - auto["sector"][0] >= 360:
+        auto["sector"] = None  # E.g. [0, 360]: the whole circle, which would otherwise wrap to an empty sector
 
     frm = cfg["framing"]
     frm["drone_size"] = _number(frm["drone_size"], "framing/drone_size", positive=True)
@@ -276,7 +277,6 @@ def _validate(cfg):
 
     ing = cfg["ingest"]
     _choice(ing["default_alt_ref"], "ingest/default_alt_ref", ("msl", "rel"))
-    _choice(ing["legacy_velocity_frame"], "ingest/legacy_velocity_frame", ("ned", "enu", "v1"))
     ing["max_clock_skew"] = _number(ing["max_clock_skew"], "ingest/max_clock_skew", minimum=0)
     ing["default_latency"] = _number(ing["default_latency"], "ingest/default_latency", minimum=0, maximum=5)
     if ing["default_alt_ref"] == "rel" and cfg["site"]["ref_alt_msl"] is None:

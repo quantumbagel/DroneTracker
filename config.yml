@@ -66,4 +66,3 @@ kafka:
 
 ingest:
   default_alt_ref: msl  # msl, or rel (relative to site/ref_alt_msl) for messages that don't say
-  legacy_velocity_frame: ned  # how to read v1 {x, y, z} velocities: ned, enu, or v1 (x=east, y=north, z=down)

@@ -28,7 +28,6 @@ def main():
     parser.add_argument("--camera-latency", type=float, default=0.1, help="camera command latency, s")
     parser.add_argument("--speed-error", type=float, default=0.85,
                         help="real camera speed / configured speed (models calibration error)")
-    parser.add_argument("--format", choices=("v2", "v1"), default="v2", help="message format to send")
     parser.add_argument("--trace", help="write per-tick samples to this CSV (only with one scenario)")
     args = parser.parse_args()
     unknown = set(args.scenarios) - set(SCENARIOS)
@@ -41,7 +40,7 @@ def main():
     cfg = load_config(args.config)
     for name in args.scenarios or SCENARIOS:
         result = run_simulation(cfg, name, msg_hz=args.msg_hz, noise=args.noise, msg_latency=args.msg_latency,
-                                camera_latency=args.camera_latency, speed_error=args.speed_error, fmt=args.format,
+                                camera_latency=args.camera_latency, speed_error=args.speed_error,
                                 trace=bool(args.trace))
         print(f"{name:9} in frame {result['in_frame_pct']:5.1f}% over {result['tracked_seconds']:5.1f}s | "
               f"error rms {result['rms_error_deg']}° max {result['max_error_deg']}° | "

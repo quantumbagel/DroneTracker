@@ -1,6 +1,5 @@
 """Per-drone tracks: filtering, freshness, and the auto-activation rules that decide which drones to film."""
 import logging
-import math
 
 import numpy as np
 
@@ -8,56 +7,6 @@ from tracker.geometry import pointing, wrap360
 from tracker.kalman import ConstantVelocityFilter
 
 log = logging.getLogger("tracks")
-
-
-class VelocityCheck:
-    """
-    Compares reported velocities against velocities derived from successive positions, to catch a sender whose
-    axes are swapped (north/east) or flipped (up/down). Such velocities would drag the filter the wrong way.
-    """
-    MIN_BASELINE = 1.0  # s between the positions compared, so GPS noise doesn't dominate
-    MIN_SPEED = 4.0  # m/s; slower motion is too noisy to judge
-    VOTES = 8
-
-    def __init__(self):
-        self.anchor = None
-        self.horizontal = [0, 0]  # [as reported, swapped]
-        self.vertical = [0, 0]  # [as reported, flipped]
-
-    def add(self, t, enu, vel_enu):
-        """:return: a description of the problem once one is established, else None"""
-        if self.anchor is None:
-            self.anchor = (t, enu, vel_enu)
-            return None
-        t0, enu0, vel0 = self.anchor
-        if t - t0 < self.MIN_BASELINE:
-            return None
-        self.anchor = (t, enu, vel_enu)
-        if t - t0 > 5.0:
-            return None
-        derived = (enu - enu0) / (t - t0)
-        reported = (vel_enu + vel0) / 2
-        if math.hypot(derived[0], derived[1]) >= self.MIN_SPEED:
-            as_is = np.linalg.norm(derived[:2] - reported[:2])
-            swapped = np.linalg.norm(derived[:2] - reported[1::-1])
-            self._vote(self.horizontal, as_is, swapped)
-        if abs(derived[2]) >= self.MIN_SPEED / 2:
-            self._vote(self.vertical, abs(derived[2] - reported[2]), abs(derived[2] + reported[2]))
-        if self._decided(self.horizontal):
-            return "north/east velocity axes look swapped"
-        if self._decided(self.vertical):
-            return "vertical velocity sign looks flipped (up vs down)"
-        return None
-
-    @staticmethod
-    def _vote(votes, as_is, alternative):
-        if alternative < 0.5 * as_is:
-            votes[1] += 1
-        elif as_is < 0.5 * alternative:
-            votes[0] += 1
-
-    def _decided(self, votes):
-        return votes[1] >= self.VOTES and votes[1] > 4 * votes[0]
 
 
 class Track:
@@ -72,16 +21,20 @@ class Track:
         self.activated_at = None
         self.eligible_since = None
         self.ineligible_since = None
-        self.use_velocity = True
-        self.velocity_check = VelocityCheck()
 
     def _new_filter(self, t, enu, vel_enu):
         return ConstantVelocityFilter(t, enu, vel_enu, accel_noise=self.cfg["accel_noise"],
                                       pos_sigma=self.cfg["pos_sigma"], vel_sigma=self.cfg["vel_sigma"])
 
     def state_at(self, t):
-        """Predicted (position, velocity, covariance), extrapolating at most tracking/max_extrapolation seconds."""
-        return self.filter.state_at(min(t, self.filter.t + self.cfg["max_extrapolation"]))
+        """
+        Predicted (position, velocity, covariance), extrapolating at most tracking/max_extrapolation seconds.
+        Past that the prediction holds still, so its velocity is zero: otherwise the camera would keep panning at the
+        drone's last angular rate while aiming at a fixed point, and settle off it.
+        """
+        limit = self.filter.t + self.cfg["max_extrapolation"]
+        pos, vel, cov = self.filter.state_at(min(t, limit))
+        return (pos, vel, cov) if t <= limit else (pos, np.zeros(3), cov)
 
     def age(self, now):
         return now - self.last_received
@@ -116,15 +69,6 @@ class TrackManager:
         if m.t <= track.filter.t:
             log.debug(f"Drone {m.drone_id}: dropping out-of-order or duplicate message")
             return track
-
-        if vel_enu is not None and track.use_velocity:
-            problem = track.velocity_check.add(m.t, enu, vel_enu)
-            if problem:
-                track.use_velocity = False
-                log.warning(f"Drone {m.drone_id}: {problem}; ignoring its reported velocity from now on. "
-                            f"Fix the sender or ingest/legacy_velocity_frame.")
-        if not track.use_velocity:
-            vel_enu = None
 
         predicted = track.filter.state_at(m.t)[0]
         jump = float(np.linalg.norm(predicted - enu))

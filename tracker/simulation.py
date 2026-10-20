@@ -111,17 +111,14 @@ def scenario(name):
 SCENARIOS = ("orbit", "flyby", "overhead", "pair", "takeoff")
 
 
-def make_message(drone, t_rel, timestamp, frame, rng, noise=0.0, fmt="v2"):
+def make_message(drone, t_rel, timestamp, frame, rng, noise=0.0):
     """A Kafka data message for `drone` at scenario time t_rel. :return: (key, value) bytes"""
     pos, vel = drone.state(t_rel)
     pos = pos + np.array([rng.gauss(0, noise), rng.gauss(0, noise), rng.gauss(0, noise)])
     lat, lon, alt = frame.to_geodetic(pos)
-    position = {"latitude": lat, "longitude": lon, "altitude": alt}
-    if fmt == "v1":
-        body = {"position": position, "velocity": {"x": vel[1], "y": vel[0], "z": -vel[2]}}
-    else:
-        body = {"drone_id": drone.id, "t": timestamp, "position": {**position, "alt_ref": "msl"},
-                "velocity": {"north": vel[1], "east": vel[0], "down": -vel[2]}}
+    body = {"drone_id": drone.id, "t": timestamp,
+            "position": {"latitude": lat, "longitude": lon, "altitude": alt, "alt_ref": "msl"},
+            "velocity": {"north": vel[1], "east": vel[0], "down": -vel[2]}}
     return drone.id.encode("utf-8"), json.dumps(body).encode("utf-8")
 
 
@@ -136,7 +133,7 @@ def simulation_config(cfg):
 
 
 def run_simulation(cfg, name, msg_hz=5.0, noise=1.5, msg_latency=0.15, camera_latency=0.1, speed_error=0.85,
-                   fmt="v2", seed=1, settle=3.0, trace=False):
+                   seed=1, settle=3.0, trace=False):
     """
     Fly a scenario against the full tracker with a simulated camera.
     :param speed_error: how fast the simulated camera really moves relative to the configured speed calibration
@@ -168,7 +165,7 @@ def run_simulation(cfg, name, msg_hz=5.0, noise=1.5, msg_latency=0.15, camera_la
     aspect = cfg["framing"]["aspect"]
     dt = 1 / cfg["control"]["hz"]
     start = clock()
-    in_flight = []  # (deliver_at, key, value)
+    in_flight = []  # (deliver_at, key, value, Kafka record timestamp)
     next_message = {d.id: 0.0 for d in drones}
     errors, in_frame, rates, target_since, last_targets = [], [], [], None, ()
     last_pan = None
@@ -180,11 +177,11 @@ def run_simulation(cfg, name, msg_hz=5.0, noise=1.5, msg_latency=0.15, camera_la
         for drone in drones:
             if drone.flying(t_rel) and t_rel >= next_message[drone.id]:
                 next_message[drone.id] = t_rel + 1 / msg_hz
-                key, value = make_message(drone, t_rel, now, frame, rng, noise, fmt)
-                in_flight.append((now + msg_latency * (0.5 + rng.random()), key, value))
+                key, value = make_message(drone, t_rel, now, frame, rng, noise)
+                in_flight.append((now + msg_latency * (0.5 + rng.random()), key, value, now))
         for message in [m for m in in_flight if m[0] <= now]:
             in_flight.remove(message)
-            app.on_data(message[1], message[2], now)
+            app.on_data(message[1], message[2], now, message[3])
 
         app.step(now)
 

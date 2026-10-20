@@ -36,7 +36,8 @@ flowchart LR
 4. **Moving the camera.** Every tick (`control/hz`) the controller reads the camera's real position. It then sets
    continuous pan/tilt speeds of *the target's angular rate* (feedforward from the velocity) plus *kp × pointing
    error* (feedback). Zoom is driven the same way towards the field of view the shot needs. The camera glides with
-   the drone instead of jumping a few degrees at a time.
+   the drone instead of jumping a few degrees at a time. If a drone is above or below the camera's tilt range, the
+   shot widens by the shortfall so the drone stays in frame as long as the lens allows.
 5. **Recording.** Recording starts when there is something to film and stops `recording/stop_after` seconds after
    there isn't. Each recording is exported to `recording/dir` as `session-<UTC time>.mkv`. Beside it,
    `session-<UTC time>.jsonl` logs every event (including the export finishing) and the state twice a second: which drones were in shot, where each
@@ -66,13 +67,11 @@ Without Docker: `pip install -r requirements.txt && python dronetracker.py --con
 | Field | |
 |---|---|
 | `drone_id` | Optional. If missing, the Kafka message key is used; if that's missing too, `default`. Use the key as the drone id so each drone's messages stay in order on one partition. |
-| `t` | Optional measurement time, in epoch seconds or milliseconds. **Send it if you can.** It lets the tracker allow for transit delay. A timestamp is ignored, with a warning, if it is more than `ingest/max_clock_skew` seconds in the future, or more than `max_clock_skew` + 5 seconds old. |
-| `alt_ref` | Optional. `msl`, or `rel` (relative to `site/ref_alt_msl`). Defaults to `ingest/default_alt_ref`. |
-| `velocity` | Optional, in NED (north, east, down) m/s. The filter estimates velocity from positions anyway; reported velocity just makes it converge faster. |
+| `t` | Optional measurement time, in epoch seconds or milliseconds. **Send it if you can.** It lets the tracker allow for transit delay. Without it, the Kafka record's timestamp (normally when the sender produced the message) is used instead. A timestamp is ignored, with a warning, if it is more than `ingest/max_clock_skew` seconds in the future, or more than `max_clock_skew` + 5 seconds old. |
+| `alt_ref` | Optional. `msl`, or `rel` (relative to `site/ref_alt_msl`), in any case. Defaults to `ingest/default_alt_ref`. |
+| `velocity` | Optional, in NED (north, east, down) m/s. The filter estimates velocity from positions anyway; reported velocity just makes it converge faster. An invalid velocity is ignored with a warning, and the position is still used. |
 
-v1 messages (`velocity: {x, y, z}`, no id or timestamp) are still accepted. Their axes are read according to
-`ingest/legacy_velocity_frame`. If reported velocities consistently disagree with the drone's actual movement
-(swapped north/east, or flipped up/down), DroneTracker logs a warning and ignores that drone's reported velocity.
+v1 messages (`velocity: {x, y, z}`) are rejected, because their axes are ambiguous. Senders must use the format above.
 
 ## Commands (command topic)
 
@@ -167,7 +166,7 @@ typos don't fail silently.
 | `auto/min_height` | `3` | Height above the reference (m) to count as airborne; `null` disables the check |
 | `auto/max_range` | `2000` | Maximum slant range (m); `null` disables the check |
 | `auto/min_elevation` | `-10` | Lowest elevation (deg) to film; `null` disables the check |
-| `auto/sector` | `null` | `[from_az, to_az]`, clockwise: only film drones within this azimuth range |
+| `auto/sector` | `null` | `[from_az, to_az]`, clockwise: only film drones within this azimuth range (`[0, 360]` is the whole circle) |
 | `framing/drone_size` | `1.0` | Drone size in metres |
 | `framing/target_fraction` | `0.15` | Fraction of the frame width a lone drone should fill |
 | `framing/uncertainty_k` | `2.0` | Sigmas of tracking uncertainty to add as margin |
@@ -185,16 +184,15 @@ typos don't fail silently.
 | `kafka/servers` | | Broker addresses, as `host:port` |
 | `kafka/data_topic`, `command_topic`, `output_topic` | `dronetracker-data`, `dronetracker-command`, `dronetracker-output` | Topic names |
 | `ingest/default_alt_ref` | `msl` | Altitude reference for messages that don't give one |
-| `ingest/legacy_velocity_frame` | `ned` | How to read v1 `{x, y, z}` velocities: `ned`, `enu`, or `v1` (x = east, y = north, z = down, which is what v1 assumed) |
 | `ingest/max_clock_skew` | `2.0` | How far (s) message timestamps may differ from this machine's clock |
-| `ingest/default_latency` | `0.0` | Transit time (s) assumed for messages without a timestamp |
+| `ingest/default_latency` | `0.0` | Transit time (s) assumed for messages with no usable timestamp, in the body or from Kafka |
 
 ## Utilities
 
 | Script | Purpose |
 |---|---|
 | `utils/simulate.py` | Fly the built-in scenarios (orbit, flyby, overhead, pair, takeoff) against the full tracker and a simulated camera, and report how well the drones stayed in frame. `--trace out.csv` writes per-tick data. |
-| `utils/fake_drones.py` | Publish simulated flights (or `--hover LAT LON ALT`) to Kafka in real time, in v2 or v1 format |
+| `utils/fake_drones.py` | Publish simulated flights (or `--hover LAT LON ALT`) to Kafka in real time |
 | `utils/command.py` | Send a command and print the reply, or `--watch` the output topic |
 | `utils/calibrate_speed.py` | Measure the camera's real pan/tilt speeds and print `camera/speed` tables |
 | `utils/cameracontroller.py` | Drive the camera from the keyboard; `p` prints the position and the azimuth it corresponds to |
@@ -216,6 +214,8 @@ client (against canned responses), the commands, and full end-to-end simulations
   `min_zoom_step`, `zoom_error` and `maximum_zoom` and the `drone`/`scale` sections are replaced by
   `control/lookahead`, the `framing` options, and `camera/zoom`. `deactivate_pos` became `park`, and `null` now
   means "don't move this axis" (in v1, `pan: 0` actually turned the camera to face north).
+* Different messages. Velocity must be `{north, east, down}`; v1's `{x, y, z}` messages are rejected. See
+  [Messages](#messages-data-topic).
 * Different behavior. The `off` command now works (v1 compared bytes with a string, so it was ignored). `on` persists
   instead of ending at the first data gap. `auto` is implemented and is the default.
 * More reliable downloads. Files are streamed by DroneTracker itself instead of shelling out to netcat. That fixes the broken

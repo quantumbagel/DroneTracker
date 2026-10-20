@@ -72,3 +72,8 @@ def test_password_from_environment(monkeypatch):
 def test_validation_errors(raw, message):
     with pytest.raises(ConfigError, match=message):
         build_config({**minimal(), **raw})
+
+
+def test_full_circle_sector_means_no_sector():
+    assert build_config({**minimal(), "auto": {"sector": [0, 360]}})["auto"]["sector"] is None
+    assert build_config({**minimal(), "auto": {"sector": [300, 60]}})["auto"]["sector"] == [300, 60]

@@ -20,6 +20,18 @@ def test_single_target_framing():
     assert aim.hfov == pytest.approx(1.0 / 0.2 + 2 * 2.0 * 0.5)
 
 
+def test_uncertainty_margin_also_fits_the_frame_height():
+    aim = frame([view("a", 30, size=0.1, uncertainty=1.0)], FRAMING)
+    assert aim.hfov == pytest.approx((0.1 + 2 * 2.0 * 1.0) * 16 / 9)
+
+
+def test_group_aim_moves_with_the_drones_at_its_edges():
+    moving = [TargetView("a", 0, 10, 4.0, 1.0, 100, 1, 0, 0), TargetView("b", 5, 10, 4.0, 1.0, 100, 1, 0, 0),
+              TargetView("c", 10, 12, 4.0, 1.0, 100, 1, 0, 0), TargetView("d", 2, 11, -8.0, -2.0, 100, 1, 0, 0)]
+    aim = frame(moving, FRAMING)
+    assert (aim.az_rate, aim.el_rate) == (4.0, 1.0)  # d is inside the shot, so it doesn't move the shot
+
+
 def test_min_hfov_floor():
     assert frame([view("a", 30, size=0.1)], {**FRAMING, "min_hfov": 4.0}).hfov == 4.0
 

@@ -78,9 +78,10 @@ class App:
 
     # --- Inputs ---
 
-    def on_data(self, key, value, received):
+    def on_data(self, key, value, received, sent=None):
+        """:param sent: the Kafka record timestamp (epoch s), if any"""
         try:
-            measurement = self.parser.parse(key, value, received)
+            measurement = self.parser.parse(key, value, received, sent)
         except ValueError as error:
             self.bad_messages += 1
             if self.bad_messages == 1 or self.bad_messages % 100 == 0:
